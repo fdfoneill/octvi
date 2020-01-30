@@ -48,7 +48,7 @@ class TestGetUrls(TestCase):
 		self.assertTrue(len(u) == 1)
 		self.assertIsInstance(u[0],tuple)
 
-class GetDates(TestCase):
+class TestGetDates(TestCase):
 
 	def test_yearOnly(self):
 		self.assertIsInstance(octvi.url.getDates("MOD09Q1","2019"),list)
