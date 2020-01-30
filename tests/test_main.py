@@ -25,7 +25,7 @@ class TestCmgNdvi(TestCase):
 	
 	def test_compositing(self):
 		idealOutPath = os.path.join(os.path.dirname(__file__),'compositeTest.tif')
-		res = cmgNdvi("2019-01-01",idealOutPath,overwrite=True)
+		res = octvi.cmgNdvi("2019-01-01",idealOutPath,overwrite=True)
 		self.assertIsInstance(res,str)
 		self.assertIsEqual(os.path.basename(res),'compositeTest.tif')
 		os.remove(res)
