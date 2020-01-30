@@ -26,11 +26,14 @@ The primary functionality of the `octvi` module is the creation of global mosaic
 ```python
 import octvi # import module
 
-viirsJanuaryDates = octvi.url.getDates("VNP09H1","2019-01") # returns a list of all days in January 2019 for which there exists valid VNP09H1 imagery
+# create a list of all days in January 2019 for which there exists valid VNP09H1 imagery
+viirsJanuaryDates = octvi.url.getDates("VNP09H1","2019-01") 
 
-octvi.globalNdvi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif") # generate global NDVI mosaic of MOD09Q1 data for an 8-day period starting on January 1st, 2019
+# generate global NDVI mosaic of MOD09Q1 data for an 8-day period starting on January 1st, 2019
+octvi.globalNdvi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif") 
 
-octvi.globalNdvi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif") # generate custome composite of CMG-scale NDVI for an 8-day period starting on January 1st, 2019
+# generate custome composite of CMG-scale NDVI for an 8-day period starting on January 1st, 2019
+octvi.globalNdvi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif") 
 ```
 
 # How to Use
