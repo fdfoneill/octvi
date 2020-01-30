@@ -10,15 +10,15 @@ This package started out as a local tool for that very purpose. The name "octvi"
 The primary functionality of the `octvi` module is the creation of global mosaics of Normalized Difference Vegetation Index (NDVI) imagery. Supported imagery products include:
 
 * MODIS 8-day NDVI
-..* Terra (MOD09Q1)
-..* Aqua (MYD09Q1)
+  * Terra (MOD09Q1)
+  * Aqua (MYD09Q1)
 * MODIS 16-day NDVI
-..* Terra (MOD13Q1)
-..* Aqua (MYD13Q1)
+  * Terra (MOD13Q1)
+  * Aqua (MYD13Q1)
 * VIIRS 8-day NDVI (VNP09H1)
 * LANCE Near Real-Time
-..* MODIS 8-day Terra (MOD09Q1N)
-..* MODIS 16-day Terra (MOD13Q4N)
+  * MODIS 8-day Terra (MOD09Q1N)
+  * MODIS 16-day Terra (MOD13Q4N)
 * MODIS 8-day Climate Modeling Grid (CMG)-scale NDVI (MOD09CMG; custom compositing)
 
 # Code Example
