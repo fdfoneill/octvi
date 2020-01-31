@@ -31,9 +31,9 @@ def calcNdvi(red_array,nir_array) -> "numpy array":
 	ndvi = np.divide((nir_array - red_array),(nir_array + red_array))
 
 	## rescale and replace infinities
-	ndvi[ndvi == np.inf] = -.3
-	ndvi[ndvi == -np.inf] = -.3
 	ndvi = ndvi * 10000
+	ndvi[ndvi == np.inf] = -3000
+	ndvi[ndvi == -np.inf] = -3000
 	ndvi = ndvi.astype(int)
 
 	## return array

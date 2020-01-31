@@ -162,32 +162,33 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 	## download all hdfs and record their paths
 	log.info("Downloading daily NDVI files")
 	hdfs = []
-	for dobj in dates:
-		d = dobj.strftime("%Y-%m-%d")
-		log.debug(d)
-		url = octvi.url.getUrls("MOD09CMG",d)[0][0]
-		hdfs.append(octvi.url.pull(url,working_directory))
-	
-	## create ideal ndvi array
-	log.info("Creating composite")
-	ndviArray = octvi.extract.cmgBestNdviPixels(hdfs)
+	try:
+		for dobj in dates:
+			d = dobj.strftime("%Y-%m-%d")
+			log.debug(d)
+			url = octvi.url.getUrls("MOD09CMG",d)[0][0]
+			hdfs.append(octvi.url.pull(url,working_directory))
+		
+		## create ideal ndvi array
+		log.info("Creating composite")
+		ndviArray = octvi.extract.cmgBestNdviPixels(hdfs)
 
-	## write to disk
-	octvi.array.toRaster(ndviArray,out_path,hdfs[0])
+		## write to disk
+		octvi.array.toRaster(ndviArray,out_path,hdfs[0])
 
-	## project to WGS84
-	ds = gdal.Open(out_path,1)
-	if ds:
-		res = ds.SetProjection('GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
-		if res != 0:
-			logging.error("--projection failed: {}".format(str(res)))
-		ds = None
-	else:
-		logging.error("--could not open with GDAL")
-
-	## delete hdfs
-	for hdf in hdfs:
-		os.remove(hdf)
+		## project to WGS84
+		ds = gdal.Open(out_path,1)
+		if ds:
+			res = ds.SetProjection('GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
+			if res != 0:
+				logging.error("--projection failed: {}".format(str(res)))
+			ds = None
+		else:
+			logging.error("--could not open with GDAL")
+	finally:
+		## delete hdfs
+		for hdf in hdfs:
+			os.remove(hdf)
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""

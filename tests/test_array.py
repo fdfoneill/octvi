@@ -14,5 +14,8 @@ class TestCalcNdvi(TestCase):
 		ndvi_array = octvi.array.calcNdvi(red_array,nir_array)
 		self.assertEqual(ndvi_array,np.array(-3000))
 
+class TestMask(TestCase):
+	pass
+
 class TestToRaster(TestCase):
 	pass

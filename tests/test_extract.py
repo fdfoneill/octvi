@@ -3,11 +3,9 @@ import numpy as np
 import os
 import octvi
 
-class TestExtract(TestCase):
-	def setUp(self):
-		self.stack = octvi.url.pull(octvi.url.getUrls("MOD09CMG","2019-01-01")[0][0],os.path.dirname(__file__),True)
-	def tearDown(self):
-		os.remove(self.stack)
+def downloadExampleFile():
+	return octvi.url.pull(octvi.url.getUrls("MOD09CMG","2019-01-01")[0][0],os.path.dirname(__file__))
+
 
 class TestGetDatasetNames(TestCase):
 	def setUp(self):
@@ -28,7 +26,7 @@ class TestDatasetToPath(TestCase):
 		os.remove(self.stack)
 
 	def test_datasetToPath(self):
-		dsn = octvi.extract.getDatasetNames(self.stack)
+		dsn = octvi.extract.getDatasetNames(self.stack)[0]
 		pathName = octvi.extract.datasetToPath(self.stack,dsn)
 		self.assertIsInstance(pathName,str)
 
