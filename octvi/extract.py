@@ -353,8 +353,8 @@ def cmgBestNdviPixels(input_stacks:list) -> "numpy array":
 	idealVang = np.minimum.reduce(vangArrays)
 	#print("Max vang:")
 	#print(np.amax(idealVang))
-	octvi.array.toRaster(idealVang,"C:/temp/MOD09CMG.VANG.tif",input_stacks[0])
-	octvi.array.toRaster(idealRank,"C:/temp/MOD09CMG.RANK.tif",input_stacks[0])
+	#octvi.array.toRaster(idealVang,"C:/temp/MOD09CMG.VANG.tif",input_stacks[0])
+	#octvi.array.toRaster(idealRank,"C:/temp/MOD09CMG.RANK.tif",input_stacks[0])
 
 	finalNdvi = np.full(ndviArrays[0].shape,-3000)
 
