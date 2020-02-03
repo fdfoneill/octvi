@@ -25,5 +25,15 @@ setup(name='octvi',
 			'h5py',
 			'gdal'
 			],
-		zip_safe=False
+		# tests
+		test_suite='nose.collector',
+		tests_require=[
+			'nose',
+			'numpy'
+			],
+		zip_safe=False,
+		# console scripts
+		entry_points = {
+			'console_scripts': ['octvidownload=octvi.command_line:main'],
+			}
 		)
