@@ -14,6 +14,7 @@ setup(name='octvi',
 		version='1.0.0',
 		description='MODIS 8-day NDVI Downloader',
 		long_description=readme(),
+		long_description_content_type='text/markdown',
 		author="F. Dan O'Neill",
 		author_email='fdfoneill@gmail.com',
 		license='MIT',
@@ -24,6 +25,12 @@ setup(name='octvi',
 			'numpy',
 			'h5py',
 			'gdal'
+			],
+		# classifiers
+		classifiers=[
+			"License :: OSI Approved :: MIT License",
+			"Programming Language :: Python :: 3",
+			"Programming Language :: Python :: 3.7",
 			],
 		# tests
 		test_suite='nose.collector',

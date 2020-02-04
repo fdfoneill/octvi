@@ -37,9 +37,16 @@ octvi.globalNdvi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif")
 ```
 
 # How to Use
+
+## In Python
+
 The `octvi` package contains four submodules: `url`, `extract`, `array`, and `exceptions`. Most of the features you will want, though, are in the top-level module.
 
 The core functionality is shown in the code example above. Once the package is installed, you can import it in a script or REPL, and then use all the submodules freely. When `octvi` is imported, all submodules are also automatically imported and their namespaces can be accessed as shown with `octvi.url.getDates()` above.
+
+## On the Command Line
+
+The package comes with one console script entry point: `octvidownload`. This script takes three arguments: product name (e.g. 'MOD09Q1'), date in %Y-%m-%d format (e.g. '2019-01-01') and output directory. Calling the script creates a global NDVI mosaic of the requested product on the requested day. If the product is daily Climate Modeling Grid-scale imagery (e.g. MOD09CMG), the script instead produces its own 8-day composite, with the 'date' argument being the first day of the compositing period.
 
 # License
 MIT License
