@@ -83,7 +83,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	west= -20015109.354#-22735470# -22758229.000 * 0.999
 	south = -6671703.118#-9143189# -9152341.5816 * 0.999
 	east= 20015109.354#20958445# 20979424.893 * 0.999
-	command = ["gdalbuildvrt","-te",str(west),str(south),str(east),str(north),intermediate_path] # gdal script and output file
+	command = ["gdalbuildvrt","-te",str(west),str(south),str(east),str(north),'-q',intermediate_path] # gdal script and output file
 	#command = ["gdalbuildvrt",intermediate_path] # gdal script and output file
 	command += in_files # append the list of input files
 
@@ -92,7 +92,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	subprocess.call(command)
 
 	## save vrt to output file location, clipped to sinusoidal bounds
-	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE", intermediate_path,out_path])
+	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE",'-q', intermediate_path,out_path])
 
 	## remove intermediate file
 	os.remove(intermediate_path)
@@ -122,7 +122,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	ds = None
 
 	# copy back to out_path
-	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE", interim_path,out_path])
+	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE",'-q', interim_path,out_path])
 
 	# delete interim_path
 	os.remove(interim_path)
