@@ -10,8 +10,10 @@ def readme():
 	with open('README.md') as f:
 		return f.read()
 
+exec(open('octvi/_version.py').read())
+
 setup(name='octvi',
-		version='1.0.0',
+		version=__version__,
 		description='MODIS 8-day NDVI Downloader',
 		long_description=readme(),
 		long_description_content_type='text/markdown',

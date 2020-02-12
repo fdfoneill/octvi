@@ -28,6 +28,8 @@
 
 ###################################################################################
 
+from ._version import __version__
+
 ## set up logging
 import logging, os
 logging.basicConfig(level=os.environ.get("LOGLEVEL","INFO"))
