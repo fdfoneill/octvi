@@ -2,9 +2,10 @@ import argparse, octvi, os
 from datetime import datetime
 
 def main():
-	parser = argparse.ArgumentParser(description="Download a global mosaic of NDVI imagery for a given date")
+	parser = argparse.ArgumentParser(description="Download a global mosaic of Vegetation Index imagery for a given date")
 	parser.add_argument('product',
 		type=str,
+		choices = octvi.supported_products,
 		help="Product code; e.g. 'MOD09Q1', 'VNP09H1', etc.")
 	parser.add_argument('date',
 		type=str,
@@ -17,6 +18,12 @@ def main():
 		type=str,
 		required=False,
 		help="Specify file name of output. If this flag is not set, the default of {PRODUCT}.{YEAR}.{DOY}.tif will be used. Must be a .tif file.")
+	parser.add_argument("-vi",
+		"--vegetation_index",
+		type=str,
+		choices = octvi.supported_indices,
+		default = "NDVI",
+		help="Which Vegetation Index should be calculated. Default is NDVI.")
 	parser.add_argument("-o",
 		"--overwrite",
 		action='store_true',
