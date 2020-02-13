@@ -36,9 +36,9 @@ def main():
 	if args.filename:
 		newOutName = os.path.join(args.out_directory,args.filename)
 	else:
-		newOutName = os.path.join(args.out_directory,f"{args.product}.{year}.{doy}.tif")
+		newOutName = os.path.join(args.out_directory,f"{args.product}.{year}.{doy}.{args.vegetation_index.lower()}.tif")
 
 	try:
-		octvi.globalNdvi(args.product,args.date,newOutName,args.overwrite)
+		octvi.globalVi(args.product,args.date,newOutName,args.overwrite,args.vegetation_index)
 	except FileExistsError:
-		print(f"WARNING: Image for {args.product} on {args.date} already exists in {args.out_directory}. Use the '--overwrite' flag to overwrite existing files.")
+		print(f"WARNING: file {os.path.basename(newOutName)} already exists in {args.out_directory}. Use the '--overwrite' flag to overwrite existing files.")

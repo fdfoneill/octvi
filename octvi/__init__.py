@@ -247,24 +247,24 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		tiles = octvi.url.getUrls(product,date)
 		log.info(f"Building {vi} tiles")
 		ndvi_files = []
-		for tile in tiles:
-			#if tile[1][-2:] in ["00","01","16","17"]:
-				#log.info(f"skipping {tile[1]}")
-				#continue
-			log.debug(tile[1])
-			url = tile[0]
-			hdf_file = octvi.url.pull(url,working_directory)
-			ext = os.path.splitext(hdf_file)[1]
-			ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
-			os.remove(hdf_file)
-		log.info("Creating mosaic")
-		mosaic(ndvi_files,out_path)
-
-		
+		try:
+			for tile in tiles:
+				#if tile[1][-2:] in ["00","01","16","17"]:
+					#log.info(f"skipping {tile[1]}")
+					#continue
+				log.debug(tile[1])
+				url = tile[0]
+				hdf_file = octvi.url.pull(url,working_directory)
+				ext = os.path.splitext(hdf_file)[1]
+				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
+				os.remove(hdf_file)
+			log.info("Creating mosaic")
+			mosaic(ndvi_files,out_path)
 
 		## remove indiviual HDFs
-		for f in ndvi_files:
-			os.remove(f)
+		finally:
+			for f in ndvi_files:
+				os.remove(f)
 
 	endTime = datetime.now()
 	log.info(f"Done. Elapsed time {endTime-startTime}")
@@ -286,6 +286,7 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		Whether to allow overwriting of existing file on disk.
 		Default: False
 	"""
+	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
 	return cmgVi(date,out_path,overwrite,"NDVI")
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
@@ -310,6 +311,5 @@ def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	overwrite: bool
 		Default False, whether to overwrite existing file at out_path
 	"""
-
+	log.warning("globalNdvi() is deprecated as of octvi 1.1.0. Use globalVi() instead.")
 	return globalVi(product,date,out_path,overwrite,"NDVI")
-
