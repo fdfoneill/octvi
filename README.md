@@ -19,7 +19,8 @@ The primary functionality of the `octvi` module is the creation of global mosaic
 * LANCE Near Real-Time
   * MODIS 8-day Terra (MOD09Q1N)
   * MODIS 16-day Terra (MOD13Q4N)
-* MODIS 8-day Climate Modeling Grid (CMG)-scale NDVI (MOD09CMG; custom compositing)
+* MODIS 8-day Climate Modeling Grid (CMG)-scale NDVI/GCVI (MOD09CMG; custom compositing)
+  * Note that MOD09CMG supports Green Chlorophyll Vegetation Index (GCVI) as well as NDVI
 
 # Code Example
 
@@ -30,10 +31,10 @@ import octvi # import module
 viirsJanuaryDates = octvi.url.getDates("VNP09H1","2019-01") 
 
 # generate global NDVI mosaic of MOD09Q1 data for an 8-day period starting on January 1st, 2019
-octvi.globalNdvi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif") 
+octvi.globalVi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif") 
 
-# generate custome composite of CMG-scale NDVI for an 8-day period starting on January 1st, 2019
-octvi.globalNdvi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif") 
+# generate custome composite of CMG-scale GCVI for an 8-day period starting on January 1st, 2019
+octvi.globalVi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif",vi="GCVI") 
 ```
 
 # How to Use
