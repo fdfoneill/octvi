@@ -199,6 +199,7 @@ def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		## delete hdfs
 		for hdf in hdfs:
 			os.remove(hdf)
+	return out_path
 
 def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	"""
@@ -268,6 +269,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 
 	endTime = datetime.now()
 	log.info(f"Done. Elapsed time {endTime-startTime}")
+	return out_path
 
 def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 	"""
