@@ -28,6 +28,8 @@
 
 ###################################################################################
 
+from ._version import __version__
+
 ## set up logging
 import logging, os
 logging.basicConfig(level=os.environ.get("LOGLEVEL","INFO"))
@@ -36,6 +38,7 @@ log = logging.getLogger(__name__)
 
 import octvi.exceptions, octvi.array, octvi.extract, octvi.url
 from octvi.url import supported_products
+from octvi.array import supported_indices
 import gdal, shutil, subprocess
 from datetime import datetime, timedelta
 
@@ -129,9 +132,10 @@ def mosaic(in_files:list,out_path:str) -> str:
 
 	return out_path
 
-def cmgNdvi(date,out_path:str,overwrite=False) -> str:
+
+def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	"""
-	This function produces an 8-day composite NDVI image
+	This function produces an 8-day composite VI image
 	at cmg scale (MOD09CMG), beginning on the provided date
 	
 	***
@@ -145,7 +149,13 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 	overwrite:bool
 		Whether to allow overwriting of existing file on disk.
 		Default: False
+	vi:str
+		What Vegetation Index type should be calculated. Default
+		"NDVI", valid options ["NDVI","GCVI"]
 	"""
+
+	if vi not in supported_indices:
+		raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not recognized or not supported.")
 
 	if os.path.exists(out_path) and overwrite == False:
 		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
@@ -160,7 +170,7 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		dates.append(dates[-1] + timedelta(days=1))
 
 	## download all hdfs and record their paths
-	log.info("Downloading daily NDVI files")
+	log.info(f"Downloading daily {vi} files")
 	hdfs = []
 	try:
 		for dobj in dates:
@@ -171,7 +181,7 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		
 		## create ideal ndvi array
 		log.info("Creating composite")
-		ndviArray = octvi.extract.cmgBestNdviPixels(hdfs)
+		ndviArray = octvi.extract.cmgBestViPixels(hdfs)
 
 		## write to disk
 		octvi.array.toRaster(ndviArray,out_path,hdfs[0])
@@ -189,6 +199,97 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		## delete hdfs
 		for hdf in hdfs:
 			os.remove(hdf)
+	return out_path
+
+def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
+	"""
+	This function takes the name of an imagery product, observation date,
+	and a vegetation index, and creates a global mosaic of the given
+	product's VI on that date.
+
+	Returns the path to the output file.
+
+	...
+
+	Parameters
+	----------
+
+	product: str
+		Name of imagery product; e.g. "MOD09Q1"
+	date: str
+		Date in format "%Y-%m-%d"
+	out_path: str
+		Full path to location where output file will be saved; e.g. "C:/temp/output.tif"
+	overwrite: bool
+		Default False, whether to overwrite existing file at out_path
+	vi: str
+		Default "NDVI", valid ["NDVI", "GCVI"]
+	"""
+
+	startTime = datetime.now()
+
+	if product not in supported_products:
+		raise octvi.exceptions.UnsupportedError(f"Product '{product}' is not currently supported. See octvi.supported_products for list of supported products.")
+
+	if vi not in supported_indices:
+		raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not recognized or not supported.")
+
+	if os.path.exists(out_path) and overwrite == False:
+		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
+
+	working_directory = os.path.dirname(out_path)
+
+	if product[5:8] == "CMG":
+		cmgVi(date,out_path,overwrite,vi)
+	elif vi == "GCVI":
+		raise octvi.exceptions.UnsupportedError("Only MOD09CMG is supported for GCVI generation")
+	else:
+		log.info("Fetching urls")
+		tiles = octvi.url.getUrls(product,date)
+		log.info(f"Building {vi} tiles")
+		ndvi_files = []
+		try:
+			for tile in tiles:
+				#if tile[1][-2:] in ["00","01","16","17"]:
+					#log.info(f"skipping {tile[1]}")
+					#continue
+				log.debug(tile[1])
+				url = tile[0]
+				hdf_file = octvi.url.pull(url,working_directory)
+				ext = os.path.splitext(hdf_file)[1]
+				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
+				os.remove(hdf_file)
+			log.info("Creating mosaic")
+			mosaic(ndvi_files,out_path)
+
+		## remove indiviual HDFs
+		finally:
+			for f in ndvi_files:
+				os.remove(f)
+
+	endTime = datetime.now()
+	log.info(f"Done. Elapsed time {endTime-startTime}")
+	return out_path
+
+def cmgNdvi(date,out_path:str,overwrite=False) -> str:
+	"""
+	This function produces an 8-day composite NDVI image
+	at cmg scale (MOD09CMG), beginning on the provided date
+	
+	***
+
+	Parameters
+	----------
+	date:str
+		Start date in format "%Y-%m-%d"
+	out_path:str
+		Full path to output file location on disk
+	overwrite:bool
+		Whether to allow overwriting of existing file on disk.
+		Default: False
+	"""
+	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
+	return cmgVi(date,out_path,overwrite,"NDVI")
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""
@@ -212,43 +313,5 @@ def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	overwrite: bool
 		Default False, whether to overwrite existing file at out_path
 	"""
-
-	startTime = datetime.now()
-
-	if product not in supported_products:
-		raise octvi.exceptions.UnsupportedError(f"Product '{product}' is not currently supported. See octvi.supported_products for list of supported products.")
-
-	if os.path.exists(out_path) and overwrite == False:
-		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
-
-	working_directory = os.path.dirname(out_path)
-
-	if product[5:8] == "CMG":
-		cmgNdvi(date,out_path,overwrite)
-	else:
-		log.info("Fetching urls")
-		tiles = octvi.url.getUrls(product,date)
-		log.info("Building NDVI tiles")
-		ndvi_files = []
-		for tile in tiles:
-			#if tile[1][-2:] in ["00","01","16","17"]:
-				#log.info(f"skipping {tile[1]}")
-				#continue
-			log.debug(tile[1])
-			url = tile[0]
-			hdf_file = octvi.url.pull(url,working_directory)
-			ext = os.path.splitext(hdf_file)[1]
-			ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
-			os.remove(hdf_file)
-		log.info("Creating mosaic")
-		mosaic(ndvi_files,out_path)
-
-		
-
-		## remove indiviual HDFs
-		for f in ndvi_files:
-			os.remove(f)
-
-	endTime = datetime.now()
-	log.info(f"Done. Elapsed time {endTime-startTime}")
-
+	log.warning("globalNdvi() is deprecated as of octvi 1.1.0. Use globalVi() instead.")
+	return globalVi(product,date,out_path,overwrite,"NDVI")

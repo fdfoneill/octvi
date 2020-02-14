@@ -158,6 +158,43 @@ def ndviToArray(in_stack) -> "numpy array":
 
 	return arr_ndvi
 
+def gcviToArray(in_stack:str) -> "numpy array":
+	"""
+	This function finds the correct Green and NIR bands
+	from a hierarchical file, calculates a GCVI array,
+	and returns the outpus in numpy array format.
+
+	Valid input format is MOD09CMG HDF.
+
+	...
+
+	Parameters
+	----------
+
+	in_stack: str
+		Full path to input hierarchical file
+
+	"""
+
+	suffix = os.path.basename(in_stack).split(".")[0][3:7]
+
+	# check whether it's an ndvi product
+	if suffix  == "09CM":
+		sdName_green = "Coarse Resolution Surface Reflectance Band 4"
+		sdName_nir = "Coarse Resolution Surface Reflectance Band 2"
+
+		## extract red and nir bands from stack
+		arr_green = datasetToArray(in_stack,sdName_green)
+		arr_nir = datasetToArray(in_stack,sdName_nir)
+
+		## perform calculation
+		arr_gcvi = octvi.array.calcGcvi(arr_green,arr_nir)
+
+	else:
+		raise octvi.exceptions.UnsupportedError("Only MOD09CMG is supported for GCVI generation")
+
+	return arr_gcvi
+
 def ndviToRaster(in_stack,out_path) -> str:
 	"""
 	This function directly converts a hierarchical data
@@ -183,6 +220,34 @@ def ndviToRaster(in_stack,out_path) -> str:
 		#raise octvi.exceptions.FileTypeError("File must be of format .hdf or .h5")
 
 	octvi.array.toRaster(ndviArray,out_path,datasetToPath(in_stack,sample_sd))
+
+	return out_path
+
+def gcviToRaster(in_stack:str,out_path:str) -> str:
+	"""
+	This function directly converts a hierarchical data
+	file into a GCVI raster.
+
+	Returns the string path to the output file
+	"""
+
+	# create gcvi array
+	gcviArray = gcviToArray(in_stack)
+
+	# apply cloud, shadow, and water masks
+	gcviArray = octvi.array.mask(gcviArray, in_stack)
+
+	sample_sd = getDatasetNames(in_stack)[0]
+
+	#ext = os.path.splitext(in_stack)[1]
+	#if ext == ".hdf":
+		#sample_sd = "sur_refl_b01"
+	#elif ext == ".h5":
+		#sample_sd = "SurfReflect_I1"
+	#else:
+		#raise octvi.exceptions.FileTypeError("File must be of format .hdf or .h5")
+
+	octvi.array.toRaster(gcviArray,out_path,datasetToPath(in_stack,sample_sd))
 
 	return out_path
 
@@ -318,10 +383,10 @@ def cmgToRankArray(source_stack) -> "numpy array":
 	# return the results
 	return rank_arr
 
-def cmgBestNdviPixels(input_stacks:list) -> "numpy array":
+def cmgBestViPixels(input_stacks:list,vi="NDVI") -> "numpy array":
 	"""
 	This function takes a list of hdf stack paths, and
-	returns the 'best' NDVI value for each pixel location,
+	returns the 'best' VI value for each pixel location,
 	determined through the ranking method (see
 	cmgToRankArray() for details). 
 
@@ -334,14 +399,20 @@ def cmgBestNdviPixels(input_stacks:list) -> "numpy array":
 		on disk
 	"""
 
+	viExtractors = {
+		"NDVI":ndviToArray,
+		"GCVI":gcviToArray
+	}
+
 	rankArrays = [cmgToRankArray(hdf) for hdf in input_stacks]
 	vangArrays = [cmgToViewAngArray(hdf) for hdf in input_stacks]
-	ndviArrays = [ndviToArray(hdf) for hdf in input_stacks]
-	#ndviArrays = [octvi.array.mask(ndviToArray(hdf),hdf) for hdf in input_stacks]
-
+	try:
+		viArrays = [viExtractors[vi](hdf) for hdf in input_stacks]
+	except KeyError:
+		raise octvi.exceptions.UnsupportedError(f"Index type '{vi}' is not recognized or not currently supported.")
 	# no nodata wanted
 	for i in range(len(rankArrays)):
-		rankArrays[i][ndviArrays[i] == -3000] = 0
+		rankArrays[i][viArrays[i] == -3000] = 0
 
 	idealRank = np.maximum.reduce(rankArrays)
 
@@ -356,18 +427,18 @@ def cmgBestNdviPixels(input_stacks:list) -> "numpy array":
 	#octvi.array.toRaster(idealVang,"C:/temp/MOD09CMG.VANG.tif",input_stacks[0])
 	#octvi.array.toRaster(idealRank,"C:/temp/MOD09CMG.RANK.tif",input_stacks[0])
 
-	finalNdvi = np.full(ndviArrays[0].shape,-3000)
+	finalVi = np.full(viArrays[0].shape,-3000)
 
 	# mask each ndviArray to only where it matches ideal rank
-	for i in range(len(ndviArrays)):
-		finalNdvi[vangArrays[i] == idealVang] = ndviArrays[i][vangArrays[i] == idealVang]
+	for i in range(len(viArrays)):
+		finalVi[vangArrays[i] == idealVang] = viArrays[i][vangArrays[i] == idealVang]
 
 	# mask out ranks that are too low
-	finalNdvi[idealRank <=7] = -3000
+	finalVi[idealRank <=7] = -3000
 
 	# mask water
 	water = cmgListToWaterArray(input_stacks)
-	finalNdvi[water==1] = -3000
+	finalVi[water==1] = -3000
 
 	# return result
-	return finalNdvi
+	return finalVi
