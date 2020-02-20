@@ -191,14 +191,22 @@ def toRaster(in_array,out_path,model_file,dtype = None) -> None:
 	# viirs won't tell you its geotransform
 	if geoTransform[1] == 1.0:
 		if os.path.splitext(model_file)[1] == ".h5":
-			pixelSize = 463.3127165
+			pixelSize = 463.3127165		
 			# use h5py
-			refDs = h5py.File(model_file.split("\"")[1],mode='r') # open file in read-only mode
+			try:
+				refDs = h5py.File(model_file.split("\"")[1],mode='r') # open file in read-only mode
+			except IndexError:
+				refDs = h5py.File(model_file,mode='r') # open file in read-only mode
 			fileMetadata = refDs['HDFEOS INFORMATION']['StructMetadata.0'][()].split() # grab metadata
 			fileMetadata = [m.decode('utf-8') for m in fileMetadata] # decode UTF
 			ulc = [i for i in fileMetadata if 'UpperLeftPointMtrs' in i][0]    # Search file metadata for the upper left corner of the file
 			ulcLon = float(ulc.split('=(')[-1].replace(')', '').split(',')[0]) # Parse metadata string for upper left corner lon value
 			ulcLat = float(ulc.split('=(')[-1].replace(')', '').split(',')[1]) # Parse metadata string for upper left corner lat value
+			# special behavior for VNP09CMG
+			if os.path.basename(model_file).split(".")[0][-3:] == "CMG":
+				ulcLon = ulcLon / 1000000
+				ulcLat = ulcLat / 1000000
+				pixelSize = 0.05
 			geoTransform = (ulcLon, pixelSize, 0.0, ulcLat, 0.0, -pixelSize)
 		elif os.path.splitext(model_file)[1] == ".hdf":
 			ds_sub = gdal.Open(refDs.GetSubDatasets()[0][0])

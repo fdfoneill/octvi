@@ -10,7 +10,7 @@ from io import StringIO
 from  octvi.exceptions import UnavailableError
 from urllib.request import urlopen, Request, URLError, HTTPError
 
-supported_products = ["MOD09Q1","MOD13Q1","MYD09Q1","MYD13Q1","VNP09H1","MOD09Q1N","MOD13Q4N","MOD09CMG"]
+supported_products = ["MOD09Q1","MOD13Q1","MYD09Q1","MYD13Q1","VNP09H1","MOD09Q1N","MOD13Q4N","MOD09CMG","VNP09CMG"]
 
 
 def pull(url:str,out_dir=None,file_name_override=None) -> str:

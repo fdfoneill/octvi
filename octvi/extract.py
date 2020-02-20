@@ -97,7 +97,7 @@ def datasetToRaster(stack_path,dataset_name, out_path,dtype = None) -> None:
 	"""
 
 	sd_array = datasetToArray(stack_path, dataset_name)
-	return octvi.array.toRaster(sd_array, out_path, model_file = datasetToPath(stack_path, dataset_name),dtype=dtype)
+	return octvi.array.toRaster(sd_array, out_path, model_file = stack_path,dtype=dtype)
 
 def ndviToArray(in_stack) -> "numpy array":
 	"""

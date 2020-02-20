@@ -133,7 +133,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	return out_path
 
 
-def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
+def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (MOD09CMG), beginning on the provided date
@@ -201,6 +201,11 @@ def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 			os.remove(hdf)
 	return out_path
 
+
+def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
+	pass
+
+
 def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	"""
 	This function takes the name of an imagery product, observation date,
@@ -240,7 +245,10 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	working_directory = os.path.dirname(out_path)
 
 	if product[5:8] == "CMG":
-		cmgVi(date,out_path,overwrite,vi)
+		if product[0] == "M":
+			modCmgVi(date,out_path,overwrite,vi)
+		elif product[0] == "V":
+			vnpCmgVi(date,out_path,overwrite,vi)
 	elif vi == "GCVI":
 		raise octvi.exceptions.UnsupportedError("Only MOD09CMG is supported for GCVI generation")
 	else:
@@ -289,7 +297,7 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		Default: False
 	"""
 	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
-	return cmgVi(date,out_path,overwrite,"NDVI")
+	return modCmgVi(date,out_path,overwrite,"NDVI")
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""
