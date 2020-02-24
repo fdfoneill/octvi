@@ -203,8 +203,70 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 
 
 def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
-	pass
+	"""
+	This function produces an 8-day composite VI image
+	at cmg scale (VNP09CMG), beginning on the provided date
+	
+	***
 
+	Parameters
+	----------
+	date:str
+		Start date in format "%Y-%m-%d"
+	out_path:str
+		Full path to output file location on disk
+	overwrite:bool
+		Whether to allow overwriting of existing file on disk.
+		Default: False
+	vi:str
+		What Vegetation Index type should be calculated. Default
+		"NDVI", valid options ["NDVI","GCVI"]
+	"""
+	if vi not in supported_indices:
+		raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not recognized or not supported.")
+
+	if os.path.exists(out_path) and overwrite == False:
+		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
+
+	working_directory = os.path.dirname(out_path)
+
+	log.info("Fetching dates")
+	## build list of eight days in compositing period
+	# each date is a datetime object
+	dates = [datetime.strptime(date,"%Y-%m-%d")]
+	while len(dates) < 8:
+		dates.append(dates[-1] + timedelta(days=1))
+
+	## download all hdf5s and record their paths
+	log.info(f"Downloading daily {vi} files")
+	h5s = []
+	try:
+		for dobj in dates:
+			d = dobj.strftime("%Y-%m-%d")
+			log.debug(d)
+			url = octvi.url.getUrls("VNP09CMG",d)[0][0]
+			h5.append(octvi.url.pull(url,working_directory))
+		
+		## create ideal ndvi array
+		log.info("Creating composite")
+		ndviArray = octvi.extract.cmgBestViPixels(h5s,product="VNP09CMG")
+		## write to disk
+		octvi.array.toRaster(ndviArray,out_path,h5s[0])
+
+		## project to WGS84
+		ds = gdal.Open(out_path,1)
+		if ds:
+			res = ds.SetProjection('GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
+			if res != 0:
+				logging.error("--projection failed: {}".format(str(res)))
+			ds = None
+		else:
+			logging.error("--could not open with GDAL")
+	finally:
+		## delete hdfs
+		for h5 in h5s:
+			os.remove(h5)
+	return out_path
 
 def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	"""
