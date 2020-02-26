@@ -132,7 +132,7 @@ def ndviToArray(in_stack) -> "numpy array":
 		if ext == ".hdf":
 			sdName_red = "Coarse Resolution Surface Reflectance Band 1"
 			sdName_nir = "Coarse Resolution Surface Reflectance Band 2"
-		elif ext = '.h5':
+		elif ext == '.h5':
 			sdName_red = "SurfReflect_I1"
 			sdName_nir = "SurfReflect_I2"
 
@@ -191,7 +191,7 @@ def gcviToArray(in_stack:str) -> "numpy array":
 		if ext == ".hdf":
 			sdName_green = "Coarse Resolution Surface Reflectance Band 4"
 			sdName_nir = "Coarse Resolution Surface Reflectance Band 2"
-		elif ext = '.h5':
+		elif ext == '.h5':
 			sdName_green = "SurfReflect_M4"
 			sdName_nir = "SurfReflect_I2"
 
@@ -283,8 +283,10 @@ def cmgToViewAngArray(source_stack,product="MOD09CMG") -> "numpy array":
 		state_arr = datasetToArray(source_stack,"Coarse Resolution State QA")
 		water = ((state_arr & 0b111000)) # check bits
 		vang_arr[water==32]=9999 # ephemeral water???
+		vang_arr[vang_arr<=0]=9999
 	elif product == "VNP09CMG":
-		vang_arr = None
+		vang_arr = datasetToArray(source_stack,"SensorZenith")
+		vang_arr[vang_arr<=0]=9999
 	return vang_arr
 
 def cmgListToWaterArray(stacks:list,product="MOD09CMG") -> "numpy array":
@@ -314,7 +316,12 @@ def cmgListToWaterArray(stacks:list,product="MOD09CMG") -> "numpy array":
 			water[state_arr==0]=0
 			water[water!=1]=0 # set non-water to zero
 		elif product == "VNP09CMG":
-			water = None
+			state_arr = datasetToArray(source_stack,"State_QA")
+			water = ((state_arr & 0b111000)) # check bits 3-5
+			water[water == 40] = 0 # "coastal" = 101
+			water[water>8]=1 # sea water = 011; inland water = 010
+			water[water!=1]=0 # set non-water to zero
+			water[water!=0]=1
 		water_list.append(water)
 	water_final = np.maximum.reduce(water_list)
 	return water_final
@@ -332,7 +339,9 @@ def cmgToRankArray(source_stack,product="MOD09CMG") -> "numpy array":
 	Parameters
 	----------
 	source_stack:str
-		Path to the MOD**CMG .hdf file on disk
+		Path to the CMG .hdf/.h5 file on disk
+	product:str
+		String of either MOD09CMG or VNP09CMG
 	"""
 	if product == "MOD09CMG":
 		qa_arr = datasetToArray(source_stack,"Coarse Resolution QA")
@@ -400,13 +409,14 @@ def cmgToRankArray(source_stack,product="MOD09CMG") -> "numpy array":
 		water[water!=1]=0 # set non-water to zero
 
 	elif product == "VNP09CMG":
+		#print("cmgToRankArray(product='VNP09CMG')")
 		qf2 = datasetToArray(source_stack,"SurfReflect_QF2")
 		qf4 = datasetToArray(source_stack,"SurfReflect_QF4")
 		state_arr = datasetToArray(source_stack,"State_QA")
 		vang_arr = datasetToArray(source_stack,"SensorZenith")
 		vang_arr[vang_arr<=0]=9999
 		sang_arr = datasetToArray(source_stack,"SolarZenith")
-		rank_arr = np.full(qa_arr.shape,10) # empty rank array
+		rank_arr = np.full(state_arr.shape,10) # empty rank array
 
 		## perform the ranking!
 		logging.debug("--rank 9: SNOW")
@@ -420,7 +430,7 @@ def cmgToRankArray(source_stack,product="MOD09CMG") -> "numpy array":
 		logging.debug("--rank 7: AEROSOL")
 		CLIMAEROSOL=(state_arr & 0b1000000) # state bit 6
 		#CLIMAEROSOL=(cloudMask & 0b100000000000000) # cloudMask bit 14
-		rank_arr[CLIMAEROSOL==0]=7 # "No"
+		#rank_arr[CLIMAEROSOL==0]=7 # "No"
 		del CLIMAEROSOL
 		# logging.debug("--rank 6: UNCORRECTED")
 		# UNCORRECTED = (qa_arr & 0b11) # qa bits 0 AND 1
@@ -453,16 +463,18 @@ def cmgToRankArray(source_stack,product="MOD09CMG") -> "numpy array":
 
 		logging.debug("-building water mask")
 		water = ((state_arr & 0b111000)) # check bits 3-5
-		water[water==8]=1 # sea water = 001
-		water[water==16]=1 # inland water = 010
-		rank_arr[water==1]=0
-		water[state_arr==0]=0
+		water[water == 40] = 0 # "coastal" = 101
+		water[water>8]=1 # sea water = 011; inland water = 010
+		# water[water==16]=1 # inland water = 010
+		# water[state_arr==0]=0
 		water[water!=1]=0 # set non-water to zero
+		water[water!=0]=1
+		rank_arr[water==1]=0
 
 	# return the results
 	return rank_arr
 
-def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG") -> "numpy array":
+def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG",snow_mask=False) -> "numpy array":
 	"""
 	This function takes a list of hdf stack paths, and
 	returns the 'best' VI value for each pixel location,
@@ -495,6 +507,11 @@ def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG") -> "numpy 
 	for i in range(len(rankArrays)):
 		rankArrays[i][viArrays[i] == -3000] = 0
 
+	# apply snow mask if requested
+	if snow_mask:
+		for rankArray in rankArrays:
+			rankArray[rankArray==9] = 0
+
 	idealRank = np.maximum.reduce(rankArrays)
 
 	# mask non-ideal view angles
@@ -503,10 +520,11 @@ def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG") -> "numpy 
 		vangArrays[i][vangArrays[i] == 0] = 9997
 
 	idealVang = np.minimum.reduce(vangArrays)
+
 	#print("Max vang:")
 	#print(np.amax(idealVang))
 	#octvi.array.toRaster(idealVang,"C:/temp/MOD09CMG.VANG.tif",input_stacks[0])
-	#octvi.array.toRaster(idealRank,"C:/temp/MOD09CMG.RANK.tif",input_stacks[0])
+	octvi.array.toRaster(idealRank,"C:/temp/VNP09CMG.RANK.tif",input_stacks[0])
 
 	finalVi = np.full(viArrays[0].shape,-3000)
 

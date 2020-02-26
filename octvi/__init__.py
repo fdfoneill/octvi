@@ -133,7 +133,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	return out_path
 
 
-def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
+def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) -> str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (MOD09CMG), beginning on the provided date
@@ -152,6 +152,8 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	vi:str
 		What Vegetation Index type should be calculated. Default
 		"NDVI", valid options ["NDVI","GCVI"]
+	snow_mask:bool
+		If True (default), masks out snow- and ice-flagged pixels.
 	"""
 
 	if vi not in supported_indices:
@@ -181,7 +183,7 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		
 		## create ideal ndvi array
 		log.info("Creating composite")
-		ndviArray = octvi.extract.cmgBestViPixels(hdfs)
+		ndviArray = octvi.extract.cmgBestViPixels(hdfs,snow_mask=snow_mask)
 
 		## write to disk
 		octvi.array.toRaster(ndviArray,out_path,hdfs[0])
@@ -202,7 +204,7 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	return out_path
 
 
-def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
+def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (VNP09CMG), beginning on the provided date
@@ -221,6 +223,8 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
 	vi:str
 		What Vegetation Index type should be calculated. Default
 		"NDVI", valid options ["NDVI","GCVI"]
+	snow_mask:bool
+		If True (default), masks out snow- and ice-flagged pixels.
 	"""
 	if vi not in supported_indices:
 		raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not recognized or not supported.")
@@ -245,11 +249,11 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
 			d = dobj.strftime("%Y-%m-%d")
 			log.debug(d)
 			url = octvi.url.getUrls("VNP09CMG",d)[0][0]
-			h5.append(octvi.url.pull(url,working_directory))
+			h5s.append(octvi.url.pull(url,working_directory))
 		
 		## create ideal ndvi array
 		log.info("Creating composite")
-		ndviArray = octvi.extract.cmgBestViPixels(h5s,product="VNP09CMG")
+		ndviArray = octvi.extract.cmgBestViPixels(h5s,product="VNP09CMG",snow_mask=snow_mask)
 		## write to disk
 		octvi.array.toRaster(ndviArray,out_path,h5s[0])
 
@@ -268,7 +272,7 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI") ->str:
 			os.remove(h5)
 	return out_path
 
-def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
+def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True) -> str:
 	"""
 	This function takes the name of an imagery product, observation date,
 	and a vegetation index, and creates a global mosaic of the given
@@ -291,6 +295,9 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		Default False, whether to overwrite existing file at out_path
 	vi: str
 		Default "NDVI", valid ["NDVI", "GCVI"]
+	cmg_snow_mask:bool
+		Implemented only for CMG-scale imagery. If set to True, masks out snow- and 
+		ice-flagged pixels.
 	"""
 
 	startTime = datetime.now()
@@ -308,11 +315,11 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 
 	if product[5:8] == "CMG":
 		if product[0] == "M":
-			modCmgVi(date,out_path,overwrite,vi)
+			modCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
 		elif product[0] == "V":
-			vnpCmgVi(date,out_path,overwrite,vi)
+			vnpCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
 	elif vi == "GCVI":
-		raise octvi.exceptions.UnsupportedError("Only MOD09CMG is supported for GCVI generation")
+		raise octvi.exceptions.UnsupportedError("Only CMG-scale imagery is supported for GCVI generation")
 	else:
 		log.info("Fetching urls")
 		tiles = octvi.url.getUrls(product,date)
@@ -341,7 +348,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	log.info(f"Done. Elapsed time {endTime-startTime}")
 	return out_path
 
-def cmgNdvi(date,out_path:str,overwrite=False) -> str:
+def cmgNdvi(date,out_path:str,overwrite=False,snow_mask=False) -> str:
 	"""
 	This function produces an 8-day composite NDVI image
 	at cmg scale (MOD09CMG), beginning on the provided date
@@ -359,7 +366,7 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		Default: False
 	"""
 	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
-	return modCmgVi(date,out_path,overwrite,"NDVI")
+	return modCmgVi(date,out_path,overwrite=overwrite,vi="NDVI",snow_mask=snow_mask)
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""

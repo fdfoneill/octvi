@@ -78,7 +78,8 @@ def mask(in_array, source_stack) -> "numpy array":
 	This function removes non-clear pixels from an input array,
 	including clouds, cloud shadow, and water.
 
-	For M*D CMG files, removes only nodata pixels
+	For M*D CMG files, removes pixels ranked below "8" in
+	MOD13Q1 compositing method, as well as water.
 
 	Returns a cleaned array.
 
@@ -101,6 +102,7 @@ def mask(in_array, source_stack) -> "numpy array":
 	ext = os.path.splitext(source_stack)[1]
 	suffix = os.path.basename(source_stack).split(".")[0][3:7]
 
+
 	## product-conditional behavior
 
 	# MODIS pre-generated VI masking
@@ -116,12 +118,87 @@ def mask(in_array, source_stack) -> "numpy array":
 		in_array[pr_arr != 0] = -3000
 
 	# MODIS and VIIRS surface reflectance masking
-	else:
-		# modis
-		if suffix == "09CM":
+	# CMG
+	elif suffix == "09CM":
+		if ext == ".hdf": # MOD09CMG
 			qa_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution QA")
 			state_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution State QA")
-		elif ext == ".hdf": 
+			# aerosols
+			logging.debug("--rank 7: CLIMAEROSOL")
+			CLIMAEROSOL=(state_arr & 0b11000000) # state bits 6 & 7
+			in_array[CLIMAEROSOL==0]=-3000 # default aerosol level
+			del CLIMAEROSOL
+			# uncorrected
+			logging.debug("--rank 6: UNCORRECTED")
+			UNCORRECTED = (qa_arr & 0b11) # qa bits 0 AND 1
+			in_array[UNCORRECTED==3]=-3000 # flagged uncorrected
+			del UNCORRECTED
+			logging.debug("--rank 5: SHADOW")
+			SHADOW = (state_arr & 0b100) # state bit 2
+			in_array[SHADOW==4]=-3000 # cloud shadow
+			del SHADOW
+			logging.debug("--rank 4: CLOUDY")
+			CLOUDINT = (state_arr & 0b10000000000)
+			in_array[CLOUDINT>0]=-3000
+			del CLOUDINT
+			logging.debug("--rank 3: HIGHVIEW")
+			in_array[sang_arr>(85/0.01)]=-3000 # HIGHVIEW
+			logging.debug("--rank 2: LOWSUN")
+			in_array[vang_arr>(60/0.01)]=-3000 # LOWSUN
+			# BAD pixels
+			logging.debug("--rank 1: BAD pixels") # qa bits (2-5 OR 6-9 == 1110)
+			BAD = ((qa_arr & 0b111100) | (qa_arr & 0b1110000000))
+			in_array[BAD==112]=-3000
+			in_array[BAD==896]=-3000
+			in_array[BAD==952]=-3000
+			del BAD
+			logging.debug("-building water mask")
+			water = ((state_arr & 0b111000)) # check bits
+			water[water==56]=1 # deep ocean
+			water[water==48]=1 # continental/moderate ocean
+			water[water==24]=1 # shallow inland water
+			water[water==40]=1 # deep inland water
+			water[water==0]=1 # shallow ocean
+			in_array[water==1]=-3000
+		elif ext == ".h5": # VNP09CMG
+			qf2 = datasetToArray(source_stack,"SurfReflect_QF2")
+			qf4 = datasetToArray(source_stack,"SurfReflect_QF4")
+			state_arr = datasetToArray(source_stack,"State_QA")
+			# cloud shadow
+			logging.debug("--rank 5: SHADOW")
+			SHADOW = (state_arr & 0b100) # state bit 2
+			in_array[SHADOW!=0]=-3000 # cloud shadow
+			del SHADOW
+			# cloud
+			logging.debug("--rank 4: CLOUDY")
+			CLOUDINT = (state_arr & 0b10000000000) # state bit 10
+			in_array[CLOUDINT>0]=-3000
+			del CLOUDINT
+			# high view angle
+			logging.debug("--rank 3: HIGHVIEW")
+			in_array[sang_arr>(85/0.01)]=-3000 # HIGHVIEW
+			# low sun angle
+			logging.debug("--rank 2: LOWSUN")
+			in_array[vang_arr>(60/0.01)]=-3000 # LOWSUN
+			# BAD pixels
+			logging.debug("--rank 1: BAD pixels") # qa bits (2-5 OR 6-9 == 1110)
+			BAD = (qf4 & 0b110)
+			in_array[BAD!= 0]=-3000
+			del BAD
+			# water
+			logging.debug("-building water mask")
+			water = ((state_arr & 0b111000)) # check bits 3-5
+			water[water == 40] = 0 # "coastal" = 101
+			water[water>8]=1 # sea water = 011; inland water = 010
+			water[water!=1]=0 # set non-water to zero
+			water[water!=0]=1
+			in_array[water==1]=-3000
+		else:
+			raise octvi.exceptions.FileTypeError("File must be of format .hdf or .h5")
+	# standard
+	else:
+		# modis
+		if ext == ".hdf": 
 			qa_arr = octvi.extract.datasetToArray(source_stack, "sur_refl_qc_250m")
 			state_arr = octvi.extract.datasetToArray(source_stack,"sur_refl_state_250m")
 
