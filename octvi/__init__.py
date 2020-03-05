@@ -41,6 +41,7 @@ from octvi.url import supported_products
 from octvi.array import supported_indices
 import gdal, shutil, subprocess
 from datetime import datetime, timedelta
+from urllib.request import HTTPError
 
 
 __all__ = [
@@ -178,8 +179,13 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) -> str:
 		for dobj in dates:
 			d = dobj.strftime("%Y-%m-%d")
 			log.debug(d)
-			url = octvi.url.getUrls("MOD09CMG",d)[0][0]
-			hdfs.append(octvi.url.pull(url,working_directory))
+			try:
+				url = octvi.url.getUrls("MOD09CMG",d)[0][0]
+				hdfs.append(octvi.url.pull(url,working_directory))
+			except octvi.exceptions.UnavailableError:
+				log.error("HTTPError from LADS DAAC; retrying from LP DAAC")
+				url = octvi.url.getUrls("MOD09CMG",d,lads_or_lp="LP")[0][0]
+				hdfs.append(octvi.url.pull(url,working_directory))
 		
 		## create ideal ndvi array
 		log.info("Creating composite")
@@ -248,9 +254,14 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 		for dobj in dates:
 			d = dobj.strftime("%Y-%m-%d")
 			log.debug(d)
-			url = octvi.url.getUrls("VNP09CMG",d)[0][0]
-			h5s.append(octvi.url.pull(url,working_directory))
-		
+			try:
+				url = octvi.url.getUrls("VNP09CMG",d)[0][0]
+				h5s.append(octvi.url.pull(url,working_directory))
+			except octvi.exceptions.UnavailableError:
+				log.error("HTTPError from LADS DAAC; retrying from LP DAAC")
+				url = octvi.url.getUrls("VNP09CMG",d,lads_or_lp="LP")[0][0]
+				h5s.append(octvi.url.pull(url,working_directory))
+
 		## create ideal ndvi array
 		log.info("Creating composite")
 		ndviArray = octvi.extract.cmgBestViPixels(h5s,product="VNP09CMG",snow_mask=snow_mask)
@@ -271,6 +282,7 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 		for h5 in h5s:
 			os.remove(h5)
 	return out_path
+
 
 def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True) -> str:
 	"""
@@ -332,7 +344,11 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 					#continue
 				log.debug(tile[1])
 				url = tile[0]
-				hdf_file = octvi.url.pull(url,working_directory)
+				try:
+					hdf_file = octvi.url.pull(url,working_directory)
+				except octvi.exceptions.UnavailableError:
+					log.error("HTTPError from LADS DAAC; trying from LP DAAC")
+					url = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0][0]
 				ext = os.path.splitext(hdf_file)[1]
 				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
 				os.remove(hdf_file)

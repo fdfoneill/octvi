@@ -72,7 +72,7 @@ def pull(url:str,out_dir=None,file_name_override=None) -> str:
 
 	return out
 
-def getUrls(product:str,date:str,tiles=None) -> list:
+def getUrls(product:str,date:str,tiles=None,lads_or_lp="LADS") -> list:
 	"""
 	This function fetches the LADS DAAC urls for the image
 	files specified by the passed product name, date string,
@@ -134,8 +134,13 @@ def getUrls(product:str,date:str,tiles=None) -> list:
 			csvUrl = f"https://nrt3.modaps.eosdis.nasa.gov/api/v2/content/details/allData/{collection}/{product}/{year}/{doy}/?fields=all&format=csv"
 			dirFiles = [ f for f in csv.DictReader(StringIO(pull(csvUrl)), skipinitialspace=True) ]
 		else:
-			dirUrl = f"https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/{collection}/{product}/{year}/{doy}/"
-			dirFiles = [ f for f in csv.DictReader(StringIO(pull('%s.csv' % dirUrl)), skipinitialspace=True) ]
+			ladsUrl = f"https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/{collection}/{product}/{year}/{doy}/"
+			lpUrl = f"https://e4ftl01.cr.usgs.gov/MOLT/{product}.{collection.zfill(3)}/{dateObj.strftime('%Y.%m.%d')}/"
+			dirFiles = [ f for f in csv.DictReader(StringIO(pull('%s.csv' % ladsUrl)), skipinitialspace=True) ]
+			if lads_or_lp == "LADS":
+				dirUrl = ladsUrl
+			elif lads_or_lp == "LP":
+				dirUrl = lpUrl
 	except UnavailableError:
 		raise UnavailableError(f"No listed data for requested product {product} on date {date}")
 
@@ -274,3 +279,6 @@ def getDates(product:str,date:str) -> list:
 	for doy in doyList:
 		outList.append(datetime.strptime(f"{year}-{doy}","%Y-%j").strftime("%Y-%m-%d"))
 	return outList
+
+def ladsToLp(lads_url:str) -> str:
+	pass
