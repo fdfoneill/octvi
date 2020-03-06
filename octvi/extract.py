@@ -524,7 +524,7 @@ def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG",snow_mask=F
 	#print("Max vang:")
 	#print(np.amax(idealVang))
 	#octvi.array.toRaster(idealVang,"C:/temp/MOD09CMG.VANG.tif",input_stacks[0])
-	octvi.array.toRaster(idealRank,"C:/temp/VNP09CMG.RANK.tif",input_stacks[0])
+	#octvi.array.toRaster(idealRank,"C:/temp/VNP09CMG.RANK.tif",input_stacks[0])
 
 	finalVi = np.full(viArrays[0].shape,-3000)
 
