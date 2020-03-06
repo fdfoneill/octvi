@@ -94,7 +94,8 @@ def getUrls(product:str,date:str,tiles=None,lads_or_lp="LADS") -> list:
 		String date of desired data, formatted as "%Y-%m-%d"
 	tile: str/list (optional)
 		Desired MODIS grid tile; e.g. "h09v13" or ["h09v13", "h10v05"]
-
+	lads_or_lp:str
+		Whether to return urls for the LP DAAC or the LADS DAAC
 	"""
 
 	if product not in supported_products:
