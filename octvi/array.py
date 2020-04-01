@@ -123,35 +123,56 @@ def mask(in_array, source_stack) -> "numpy array":
 		if ext == ".hdf": # MOD09CMG
 			qa_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution QA")
 			state_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution State QA")
-			# aerosols
+			vang_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution View Zenith Angle")
+			vang_arr[vang_arr<=0]=9999
+			sang_arr = octvi.extract.datasetToArray(source_stack,"Coarse Resolution Solar Zenith Angle")
+			rank_arr = np.full(qa_arr.shape,10) # empty rank array
+
+			## perform the ranking!
+			logging.debug("--rank 9: SNOW")
+			SNOW = ((state_arr & 0b1000000000000) | (state_arr & 0b1000000000000000)) # state bit 12 OR 15
+			rank_arr[SNOW>0]=9 # snow
+			del SNOW
+			logging.debug("--rank 8: HIGHAEROSOL")
+			HIGHAEROSOL=(state_arr & 0b11000000) # state bits 6 AND 7
+			rank_arr[HIGHAEROSOL==192]=8
+			del HIGHAEROSOL
 			logging.debug("--rank 7: CLIMAEROSOL")
 			CLIMAEROSOL=(state_arr & 0b11000000) # state bits 6 & 7
-			in_array[CLIMAEROSOL==0]=-3000 # default aerosol level
+			#CLIMAEROSOL=(cloudMask & 0b100000000000000) # cloudMask bit 14
+			rank_arr[CLIMAEROSOL==0]=7 # default aerosol level
 			del CLIMAEROSOL
-			# uncorrected
 			logging.debug("--rank 6: UNCORRECTED")
 			UNCORRECTED = (qa_arr & 0b11) # qa bits 0 AND 1
-			in_array[UNCORRECTED==3]=-3000 # flagged uncorrected
+			rank_arr[UNCORRECTED==3]=6 # flagged uncorrected
 			del UNCORRECTED
 			logging.debug("--rank 5: SHADOW")
 			SHADOW = (state_arr & 0b100) # state bit 2
-			in_array[SHADOW==4]=-3000 # cloud shadow
+			rank_arr[SHADOW==4]=5 # cloud shadow
 			del SHADOW
 			logging.debug("--rank 4: CLOUDY")
+			# set adj to 11 and internal to 12 to verify in qa output
+			CLOUDY = ((state_arr & 0b11)) # state bit 0 OR bit 1 OR bit 10 OR bit 13
+			#rank_arr[CLOUDY!=0]=4 # cloud pixel
+			del CLOUDY
+			CLOUDADJ = (state_arr & 0b10000000000000)
+			#rank_arr[CLOUDADJ>0]=4 # adjacent to cloud
+			del CLOUDADJ
 			CLOUDINT = (state_arr & 0b10000000000)
-			in_array[CLOUDINT>0]=-3000
+			rank_arr[CLOUDINT>0]=4
 			del CLOUDINT
 			logging.debug("--rank 3: HIGHVIEW")
-			in_array[sang_arr>(85/0.01)]=-3000 # HIGHVIEW
+			rank_arr[sang_arr>(85/0.01)]=3 # HIGHVIEW
 			logging.debug("--rank 2: LOWSUN")
-			in_array[vang_arr>(60/0.01)]=-3000 # LOWSUN
+			rank_arr[vang_arr>(60/0.01)]=2 # LOWSUN
 			# BAD pixels
 			logging.debug("--rank 1: BAD pixels") # qa bits (2-5 OR 6-9 == 1110)
 			BAD = ((qa_arr & 0b111100) | (qa_arr & 0b1110000000))
-			in_array[BAD==112]=-3000
-			in_array[BAD==896]=-3000
-			in_array[BAD==952]=-3000
+			rank_arr[BAD==112]=1
+			rank_arr[BAD==896]=1
+			rank_arr[BAD==952]=1
 			del BAD
+
 			logging.debug("-building water mask")
 			water = ((state_arr & 0b111000)) # check bits
 			water[water==56]=1 # deep ocean
@@ -159,40 +180,73 @@ def mask(in_array, source_stack) -> "numpy array":
 			water[water==24]=1 # shallow inland water
 			water[water==40]=1 # deep inland water
 			water[water==0]=1 # shallow ocean
-			in_array[water==1]=-3000
+			rank_arr[water==1]=0
+			vang_arr[water==32]=9999 # ephemeral water???
+			water[state_arr==0]=0
+			water[water!=1]=0 # set non-water to zero
+			in_array[rank_arr <= 7] = -3000
 		elif ext == ".h5": # VNP09CMG
-			qf2 = datasetToArray(source_stack,"SurfReflect_QF2")
-			qf4 = datasetToArray(source_stack,"SurfReflect_QF4")
-			state_arr = datasetToArray(source_stack,"State_QA")
-			# cloud shadow
+			qf2 = octvi.extract.datasetToArray(source_stack,"SurfReflect_QF2")
+			qf4 = octvi.extract.datasetToArray(source_stack,"SurfReflect_QF4")
+			state_arr = octvi.extract.datasetToArray(source_stack,"State_QA")
+			vang_arr = octvi.extract.datasetToArray(source_stack,"SensorZenith")
+			vang_arr[vang_arr<=0]=9999
+			sang_arr = octvi.extract.datasetToArray(source_stack,"SolarZenith")
+			rank_arr = np.full(state_arr.shape,10) # empty rank array
+
+			## perform the ranking!
+			logging.debug("--rank 9: SNOW")
+			SNOW = (state_arr & 0b1000000000000000) # state bit 15
+			rank_arr[SNOW>0]=9 # snow
+			del SNOW
+			logging.debug("--rank 8: HIGHAEROSOL")
+			HIGHAEROSOL=(qf2 & 0b10000) # qf2 bit 4
+			rank_arr[HIGHAEROSOL!=0]=8
+			del HIGHAEROSOL
+			logging.debug("--rank 7: AEROSOL")
+			CLIMAEROSOL=(state_arr & 0b1000000) # state bit 6
+			#CLIMAEROSOL=(cloudMask & 0b100000000000000) # cloudMask bit 14
+			#rank_arr[CLIMAEROSOL==0]=7 # "No"
+			del CLIMAEROSOL
+			# logging.debug("--rank 6: UNCORRECTED")
+			# UNCORRECTED = (qa_arr & 0b11) # qa bits 0 AND 1
+			# rank_arr[UNCORRECTED==3]=6 # flagged uncorrected
+			# del UNCORRECTED
 			logging.debug("--rank 5: SHADOW")
 			SHADOW = (state_arr & 0b100) # state bit 2
-			in_array[SHADOW!=0]=-3000 # cloud shadow
+			rank_arr[SHADOW!=0]=5 # cloud shadow
 			del SHADOW
-			# cloud
 			logging.debug("--rank 4: CLOUDY")
+			# set adj to 11 and internal to 12 to verify in qa output
+			# CLOUDY = ((state_arr & 0b11)) # state bit 0 OR bit 1 OR bit 10 OR bit 13
+			# rank_arr[CLOUDY!=0]=4 # cloud pixel
+			# del CLOUDY
+			# CLOUDADJ = (state_arr & 0b10000000000) # nonexistent for viirs
+			# #rank_arr[CLOUDADJ>0]=4 # adjacent to cloud
+			# del CLOUDADJ
 			CLOUDINT = (state_arr & 0b10000000000) # state bit 10
-			in_array[CLOUDINT>0]=-3000
+			rank_arr[CLOUDINT>0]=4
 			del CLOUDINT
-			# high view angle
 			logging.debug("--rank 3: HIGHVIEW")
-			in_array[sang_arr>(85/0.01)]=-3000 # HIGHVIEW
-			# low sun angle
+			rank_arr[sang_arr>(85/0.01)]=3 # HIGHVIEW
 			logging.debug("--rank 2: LOWSUN")
-			in_array[vang_arr>(60/0.01)]=-3000 # LOWSUN
+			rank_arr[vang_arr>(60/0.01)]=2 # LOWSUN
 			# BAD pixels
 			logging.debug("--rank 1: BAD pixels") # qa bits (2-5 OR 6-9 == 1110)
 			BAD = (qf4 & 0b110)
-			in_array[BAD!= 0]=-3000
+			rank_arr[BAD!= 0]=1
 			del BAD
-			# water
+
 			logging.debug("-building water mask")
 			water = ((state_arr & 0b111000)) # check bits 3-5
 			water[water == 40] = 0 # "coastal" = 101
 			water[water>8]=1 # sea water = 011; inland water = 010
+			# water[water==16]=1 # inland water = 010
+			# water[state_arr==0]=0
 			water[water!=1]=0 # set non-water to zero
 			water[water!=0]=1
-			in_array[water==1]=-3000
+			rank_arr[water==1]=0
+			in_array[rank_arr <= 7] = -3000
 		else:
 			raise octvi.exceptions.FileTypeError("File must be of format .hdf or .h5")
 	# standard
