@@ -345,10 +345,11 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 				log.debug(tile[1])
 				url = tile[0]
 				try:
-					hdf_file = octvi.url.pull(url,working_directory)
+					hdf_file = octvi.url.pull(url,working_directory,retries=8)
 				except octvi.exceptions.UnavailableError:
-					log.error("HTTPError from LADS DAAC; trying from LP DAAC")
+					log.error("Unavailable from LADS DAAC; trying from LP DAAC")
 					url = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0][0]
+					hdf_file = octvi.url.pull(url,working_directory)
 				ext = os.path.splitext(hdf_file)[1]
 				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
 				os.remove(hdf_file)
