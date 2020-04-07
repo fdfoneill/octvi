@@ -11,10 +11,10 @@ from  octvi.exceptions import UnavailableError
 from urllib.request import urlopen, Request, URLError, HTTPError
 
 supported_products = ["MOD09Q1","MOD13Q1","MYD09Q1","MYD13Q1","VNP09H1","MOD09Q1N","MOD13Q4N","MOD09CMG","VNP09CMG"]
-app_key = '95A63BCA-39AE-11E8-B469-FEF9569DBFBA'
+#app_key = '95A63BCA-39AE-11E8-B469-FEF9569DBFBA'
 
 
-def pull(url:str,out_dir=None,file_name_override=None,retries=0) -> str:
+def pull(url:str,out_dir=None,file_name_override=None,retries=5) -> str:
 	"""
 	This function attempts to open the data file located at {url}. If
 	{out_dir} is provided, the file is saved to that location. Otherwise,
@@ -46,7 +46,7 @@ def pull(url:str,out_dir=None,file_name_override=None,retries=0) -> str:
 		lads_or_lp = "LADS"
 
 	## building authorization
-	headers = { 'user-agent' : str('tis/download.py_1.0--' + sys.version.replace('\n','').replace('\r','')), 'Authorization' : f'Bearer {app_key}'}
+	headers = { 'user-agent' : str('tis/download.py_1.0--' + sys.version.replace('\n','').replace('\r','')), 'Authorization' : f'Bearer {octvi.app_key}'}
 	#headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36'
 	CTX = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 
@@ -87,16 +87,16 @@ def pull(url:str,out_dir=None,file_name_override=None,retries=0) -> str:
 			#log.warning(f"urllib method failed for {url}, trying wget")
 			#try:
 				#log.info("wget64")
-				#subprocess.call(["wget64",url,'--header',f'"Authorization: Bearer {app_key}"',"-O",out],shell=True)
+				#subprocess.call(["wget64",url,'--header',f'"Authorization: Bearer {octvi.app_key}"',"-O",out],shell=True)
 				#return out
 			#except FileNotFoundError:
 				#try:
 					#log.info("wget32")
-					#subprocess.call(["wget32",url,'--header',f'"Authorization: Bearer {app_key}"',"-O",out],shell=True)
+					#subprocess.call(["wget32",url,'--header',f'"Authorization: Bearer {octvi.app_key}"',"-O",out],shell=True)
 					#return out
 				#except FileNotFoundError:
 					#log.info("wget")
-					#subprocess.call(["wget",url,'--header',f'"Authorization: Bearer {app_key}"',"-O",out],shell=True)
+					#subprocess.call(["wget",url,'--header',f'"Authorization: Bearer {octvi.app_key}"',"-O",out],shell=True)
 					#return out
 
 	## fetching data

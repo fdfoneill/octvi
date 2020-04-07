@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 import octvi.exceptions, octvi.array, octvi.extract, octvi.url
 from octvi.url import supported_products
 from octvi.array import supported_indices
-import gdal, shutil, subprocess
+import configparser, gdal, shutil, subprocess
 from datetime import datetime, timedelta
 from urllib.request import HTTPError
 
@@ -51,6 +51,13 @@ __all__ = [
 			'url'
 			]
 
+configFile = os.path.join(os.path.dirname(os.path.dirname(__file__)),"etc/config.ini")
+try:
+	config = configparser.ConfigParser()
+	config.read(configFile)
+	app_key = config['NASA']['app_key']
+except:
+	log.warning("No app key found in config file; downloading will be unavailable. Run `octviconfig` from the command line.\nInformation on app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#appkeys")
 
 def mosaic(in_files:list,out_path:str) -> str:
 	"""
@@ -365,6 +372,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 	log.info(f"Done. Elapsed time {endTime-startTime}")
 	return out_path
 
+
 def cmgNdvi(date,out_path:str,overwrite=False,snow_mask=False) -> str:
 	"""
 	This function produces an 8-day composite NDVI image
@@ -384,6 +392,7 @@ def cmgNdvi(date,out_path:str,overwrite=False,snow_mask=False) -> str:
 	"""
 	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
 	return modCmgVi(date,out_path,overwrite=overwrite,vi="NDVI",snow_mask=snow_mask)
+
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""

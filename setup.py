@@ -43,6 +43,6 @@ setup(name='octvi',
 		zip_safe=False,
 		# console scripts
 		entry_points = {
-			'console_scripts': ['octvidownload=octvi.command_line:main'],
+			'console_scripts': ['octvidownload=octvi.command_line:main','octviconfig=octvi.config:main'],
 			}
 		)
