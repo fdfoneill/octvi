@@ -1,6 +1,10 @@
 # octvi
 Python package for downloading, mosaicking, or compositing MODIS-scale NDVI imagery
 
+# New in Version 2.0.0
+
+Downloading from the NASA distributed archives (DAACs) requires a personal app key. This key was previously provided as part of the `octvi` distribution, but this is no longer the case as of Version 2.0.0. Instead, users must configure the module using a new console script, `octviconfig`. After installation, run `octviconfig` to prompt the input of your personal app key. Information on obtaining app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#appkeys.
+
 # Motivation
 I work on development of the Global Agriculture Monitoring (GLAM) system. A core feature of the system is the ability to display large amounts of Vegetation Index (VI) imagery, pulled from sources like the MODIS and VIIRS satellite sensors. Obviously, displaying that imagery through our system requires the ability to download it from its source. This is harder than it sounds, especially when we also want to extract specific subdatasets, convert to a different file format, and mosaic dozens of individual "tiles" into a single global image.
 

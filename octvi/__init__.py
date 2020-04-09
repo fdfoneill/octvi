@@ -39,8 +39,9 @@ log = logging.getLogger(__name__)
 import octvi.exceptions, octvi.array, octvi.extract, octvi.url
 from octvi.url import supported_products
 from octvi.array import supported_indices
-import gdal, shutil, subprocess
+import configparser, gdal, shutil, subprocess
 from datetime import datetime, timedelta
+from urllib.request import HTTPError
 
 
 __all__ = [
@@ -50,6 +51,13 @@ __all__ = [
 			'url'
 			]
 
+configFile = os.path.join(os.path.dirname(os.path.dirname(__file__)),"etc/config.ini")
+try:
+	config = configparser.ConfigParser()
+	config.read(configFile)
+	app_key = config['NASA']['app_key']
+except:
+	log.warning("No app key found in config file; downloading will be unavailable. Run `octviconfig` from the command line.\nInformation on app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#appkeys")
 
 def mosaic(in_files:list,out_path:str) -> str:
 	"""
@@ -133,7 +141,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	return out_path
 
 
-def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
+def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) -> str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (MOD09CMG), beginning on the provided date
@@ -152,6 +160,8 @@ def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	vi:str
 		What Vegetation Index type should be calculated. Default
 		"NDVI", valid options ["NDVI","GCVI"]
+	snow_mask:bool
+		If True (default), masks out snow- and ice-flagged pixels.
 	"""
 
 	if vi not in supported_indices:
@@ -176,12 +186,17 @@ def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		for dobj in dates:
 			d = dobj.strftime("%Y-%m-%d")
 			log.debug(d)
-			url = octvi.url.getUrls("MOD09CMG",d)[0][0]
-			hdfs.append(octvi.url.pull(url,working_directory))
+			try:
+				url = octvi.url.getUrls("MOD09CMG",d)[0][0]
+				hdfs.append(octvi.url.pull(url,working_directory))
+			except octvi.exceptions.UnavailableError:
+				log.error("HTTPError from LADS DAAC; retrying from LP DAAC")
+				url = octvi.url.getUrls("MOD09CMG",d,lads_or_lp="LP")[0][0]
+				hdfs.append(octvi.url.pull(url,working_directory))
 		
 		## create ideal ndvi array
 		log.info("Creating composite")
-		ndviArray = octvi.extract.cmgBestViPixels(hdfs)
+		ndviArray = octvi.extract.cmgBestViPixels(hdfs,snow_mask=snow_mask)
 
 		## write to disk
 		octvi.array.toRaster(ndviArray,out_path,hdfs[0])
@@ -201,7 +216,82 @@ def cmgVi(date,out_path:str,overwrite=False,vi="NDVI") -> str:
 			os.remove(hdf)
 	return out_path
 
-def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
+
+def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
+	"""
+	This function produces an 8-day composite VI image
+	at cmg scale (VNP09CMG), beginning on the provided date
+	
+	***
+
+	Parameters
+	----------
+	date:str
+		Start date in format "%Y-%m-%d"
+	out_path:str
+		Full path to output file location on disk
+	overwrite:bool
+		Whether to allow overwriting of existing file on disk.
+		Default: False
+	vi:str
+		What Vegetation Index type should be calculated. Default
+		"NDVI", valid options ["NDVI","GCVI"]
+	snow_mask:bool
+		If True (default), masks out snow- and ice-flagged pixels.
+	"""
+	if vi not in supported_indices:
+		raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not recognized or not supported.")
+
+	if os.path.exists(out_path) and overwrite == False:
+		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
+
+	working_directory = os.path.dirname(out_path)
+
+	log.info("Fetching dates")
+	## build list of eight days in compositing period
+	# each date is a datetime object
+	dates = [datetime.strptime(date,"%Y-%m-%d")]
+	while len(dates) < 8:
+		dates.append(dates[-1] + timedelta(days=1))
+
+	## download all hdf5s and record their paths
+	log.info(f"Downloading daily {vi} files")
+	h5s = []
+	try:
+		for dobj in dates:
+			d = dobj.strftime("%Y-%m-%d")
+			log.debug(d)
+			try:
+				url = octvi.url.getUrls("VNP09CMG",d)[0][0]
+				h5s.append(octvi.url.pull(url,working_directory))
+			except octvi.exceptions.UnavailableError:
+				log.error("HTTPError from LADS DAAC; retrying from LP DAAC")
+				url = octvi.url.getUrls("VNP09CMG",d,lads_or_lp="LP")[0][0]
+				h5s.append(octvi.url.pull(url,working_directory))
+
+		## create ideal ndvi array
+		log.info("Creating composite")
+		ndviArray = octvi.extract.cmgBestViPixels(h5s,product="VNP09CMG",snow_mask=snow_mask)
+		## write to disk
+		octvi.array.toRaster(ndviArray,out_path,h5s[0])
+
+		## project to WGS84
+		ds = gdal.Open(out_path,1)
+		if ds:
+			res = ds.SetProjection('GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
+			if res != 0:
+				logging.error("--projection failed: {}".format(str(res)))
+			ds = None
+		else:
+			logging.error("--could not open with GDAL")
+	finally:
+		## delete hdfs
+		for h5 in h5s:
+			os.remove(h5)
+	return out_path
+
+
+def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True) -> str:
 	"""
 	This function takes the name of an imagery product, observation date,
 	and a vegetation index, and creates a global mosaic of the given
@@ -224,6 +314,9 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 		Default False, whether to overwrite existing file at out_path
 	vi: str
 		Default "NDVI", valid ["NDVI", "GCVI"]
+	cmg_snow_mask:bool
+		Implemented only for CMG-scale imagery. If set to True, masks out snow- and 
+		ice-flagged pixels.
 	"""
 
 	startTime = datetime.now()
@@ -240,9 +333,12 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	working_directory = os.path.dirname(out_path)
 
 	if product[5:8] == "CMG":
-		cmgVi(date,out_path,overwrite,vi)
+		if product[0] == "M":
+			modCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
+		elif product[0] == "V":
+			vnpCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
 	elif vi == "GCVI":
-		raise octvi.exceptions.UnsupportedError("Only MOD09CMG is supported for GCVI generation")
+		raise octvi.exceptions.UnsupportedError("Only CMG-scale imagery is supported for GCVI generation")
 	else:
 		log.info("Fetching urls")
 		tiles = octvi.url.getUrls(product,date)
@@ -255,7 +351,12 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 					#continue
 				log.debug(tile[1])
 				url = tile[0]
-				hdf_file = octvi.url.pull(url,working_directory)
+				try:
+					hdf_file = octvi.url.pull(url,working_directory,retries=8)
+				except octvi.exceptions.UnavailableError:
+					log.error("Unavailable from LADS DAAC; trying from LP DAAC")
+					url = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0][0]
+					hdf_file = octvi.url.pull(url,working_directory)
 				ext = os.path.splitext(hdf_file)[1]
 				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
 				os.remove(hdf_file)
@@ -271,7 +372,8 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI") -> str:
 	log.info(f"Done. Elapsed time {endTime-startTime}")
 	return out_path
 
-def cmgNdvi(date,out_path:str,overwrite=False) -> str:
+
+def cmgNdvi(date,out_path:str,overwrite=False,snow_mask=False) -> str:
 	"""
 	This function produces an 8-day composite NDVI image
 	at cmg scale (MOD09CMG), beginning on the provided date
@@ -289,7 +391,8 @@ def cmgNdvi(date,out_path:str,overwrite=False) -> str:
 		Default: False
 	"""
 	log.warning("cmgNdvi() is deprecated as of octvi 1.1.0. Use cmgVi() instead")
-	return cmgVi(date,out_path,overwrite,"NDVI")
+	return modCmgVi(date,out_path,overwrite=overwrite,vi="NDVI",snow_mask=snow_mask)
+
 
 def globalNdvi(product,date,out_path:str,overwrite=False) -> str:
 	"""

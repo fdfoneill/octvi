@@ -1,6 +1,7 @@
 # .gitignore
 __pycache__
 venv
+etc/config.ini
 
 # distribution / packaging
 bin/
