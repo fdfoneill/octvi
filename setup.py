@@ -24,7 +24,7 @@ setup(name='octvi',
 		include_package_data=True,
 		# third-party dependencies
 		install_requires=[
-			'numpy',
+			'numpy>=1.18',
 			'h5py',
 			'gdal'
 			],
