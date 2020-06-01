@@ -20,6 +20,8 @@ def main():
 		help="List current credentials instead of prompting for new")
 	args = parser.parse_args()
 	config = configparser.ConfigParser()
+	if not os.path.exists(os.path.dirname(config)):
+		os.mkdir(os.path.dirname(config))
 	try:
 		config.read(configFile)
 		## if asked to list existing credentials, print them nicely
