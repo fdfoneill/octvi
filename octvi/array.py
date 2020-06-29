@@ -125,7 +125,7 @@ def mask(in_array, source_stack) -> "numpy array":
 		in_array[(qa_arr & 0b11000000) == 192] = -3000 # high
 
 		# mask water
-		in_array[(qa_arr & 0b11100000000000) != 8] & in_array[(qa_arr & 0b11100000000000) != 16] & in_array[(qa_arr & 0b11100000000000) != 32] = -3000
+		in_array[(qa_arr & 0b11100000000000) != 8 & (qa_arr & 0b11100000000000) != 16 & (qa_arr & 0b11100000000000) != 32] = -3000
 		# 8 = land, 16 = coastline, 32 = ephemeral water
 
 		# mask snow/ice
