@@ -201,6 +201,7 @@ def getUrls(product:str,date:str,tiles=None,lads_or_lp="LADS") -> list:
 			if fPath.split(".")[-1] == "met": # skip metadata files for NRT
 				continue
 			fullUrl = "https://nrt3.modaps.eosdis.nasa.gov" + fPath
+			fSize = f['size']
 		else:
 			fName = f["name"]
 			fTile  = fName.split(".")[2]
