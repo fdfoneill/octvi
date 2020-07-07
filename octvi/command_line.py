@@ -24,6 +24,9 @@ def main():
 		choices = octvi.supported_indices,
 		default = "NDVI",
 		help="Which Vegetation Index should be calculated. Default is NDVI.")
+	parser.add_argument('-qa',
+		action='store_true',
+		help="If set, a second output TIFF is created with QA metadata at PATH.qa.EXTENSION.")
 	parser.add_argument("-o",
 		"--overwrite",
 		action='store_true',
@@ -39,6 +42,6 @@ def main():
 		newOutName = os.path.join(args.out_directory,f"{args.product}.{year}.{doy}.{args.vegetation_index.lower()}.tif")
 
 	try:
-		octvi.globalVi(args.product,args.date,newOutName,args.overwrite,args.vegetation_index)
+		octvi.globalVi(args.product,args.date,newOutName,args.overwrite,args.vegetation_index,qa=args.qa)
 	except FileExistsError:
 		print(f"WARNING: file {os.path.basename(newOutName)} already exists in {args.out_directory}. Use the '--overwrite' flag to overwrite existing files.")

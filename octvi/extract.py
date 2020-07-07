@@ -80,7 +80,7 @@ def datasetToArray(stack_path,dataset_name) -> "numpy array":
 	subDs_band = subDs.GetRasterBand(1)
 	return BandReadAsArray(subDs_band)
 
-def datasetToRaster(stack_path,dataset_name, out_path,dtype = None) -> None:
+def datasetToRaster(stack_path,dataset_name, out_path,dtype = None, *args, **kwargs) -> None:
 	"""
 	Wrapper for extractAsArray and arrayToRaster which pulls
 	subdataset from hdf or h5 file and saves to new location.
@@ -207,12 +207,22 @@ def gcviToArray(in_stack:str) -> "numpy array":
 
 	return arr_gcvi
 
-def ndviToRaster(in_stack,out_path) -> str:
+def ndviToRaster(in_stack,out_path,qa_name=None) -> str:
 	"""
 	This function directly converts a hierarchical data
 	file into an NDVI raster.
 
 	Returns the string path to the output file
+
+	***
+
+	Parameters
+	----------
+	in_stack:str
+	out_path:str
+	qa_name (optional):str
+		Name of QA dataset, if included produces
+		two-band tiff
 	"""
 
 	# create ndvi array
@@ -230,8 +240,15 @@ def ndviToRaster(in_stack,out_path) -> str:
 		#sample_sd = "SurfReflect_I1"
 	#else:
 		#raise octvi.exceptions.FileTypeError("File must be of format .hdf or .h5")
-
-	octvi.array.toRaster(ndviArray,out_path,datasetToPath(in_stack,sample_sd))
+	if qa_name is None:
+		#octvi.array.toRaster(ndviArray,out_path,datasetToPath(in_stack,sample_sd))
+		octvi.array.toRaster(ndviArray,out_path,in_stack,sample_sd)
+	else:
+		# get qa array
+		qaArray = datasetToArray(in_stack,qa_name)
+		# create multiband at out_path
+		#octvi.array.toRaster(ndviArray,out_path,datasetToPath(in_stack,sample_sd),qa_array = qaArray)
+		octvi.array.toRaster(ndviArray,out_path,in_stack,qa_array = qaArray)
 
 	return out_path
 
@@ -541,3 +558,25 @@ def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG",snow_mask=F
 
 	# return result
 	return finalVi
+
+def qaTo8BitArray(stack_path) -> "numpy array":
+	"""Returns an 8-bit QA array for the passed image file
+
+	MODIS and VIIRS use 16-bit QA layers, but many of those bits
+	are redundant or unnecessary for purposes of VI mapping. For
+	example, non-land pixels are masked by default, so the land/
+	water flag is unused.
+
+	This function pares down the 16-bit mask into an 8-bit 
+	version that retains all necessary functionality.
+
+	***
+
+	Parameters
+	----------
+	stack_path:str
+		Full path to input hierarchical file on disk
+
+	"""
+	log.warning("octvi.extract.qaTo8BitArray() is not implemented!")
+	return None

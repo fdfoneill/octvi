@@ -51,6 +51,18 @@ __all__ = [
 			'url'
 			]
 
+QA_DICT = {
+	"MOD09Q1":"sur_refl_state_250m",
+	"MOD13Q1":"250m 16 days VI Quality",
+	"MYD09Q1":"sur_refl_state_250m",
+	"MYD13Q1":"250m 16 days VI Quality",
+	"VNP09H1":"SurfReflect_State_500m",
+	"MOD09Q1N":"sur_refl_state_250m",
+	"MOD13Q4N":"250m 8 days VI Quality",
+	"MOD09CMG":None,
+	"VNP09CMG":None
+	}
+
 configFile = os.path.join(os.path.dirname(os.path.dirname(__file__)),"etc/config.ini")
 try:
 	config = configparser.ConfigParser()
@@ -59,7 +71,7 @@ try:
 except:
 	log.warning("No app key found in config file; downloading will be unavailable. Run `octviconfig` from the command line.\nInformation on app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#appkeys")
 
-def mosaic(in_files:list,out_path:str) -> str:
+def mosaic(in_files:list,out_path:str,compression="DEFLATE") -> str:
 	"""
 	This function takes a list of input raster files, and uses
 	a gdal VRT to create a mosaic of all the inputs. This mosaic
@@ -103,7 +115,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	subprocess.call(command)
 
 	## save vrt to output file location, clipped to sinusoidal bounds
-	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE",'-q', intermediate_path,out_path])
+	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', f"COMPRESS={compression}",'-q', intermediate_path,out_path])
 
 	## remove intermediate file
 	os.remove(intermediate_path)
@@ -133,7 +145,7 @@ def mosaic(in_files:list,out_path:str) -> str:
 	ds = None
 
 	# copy back to out_path
-	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', "COMPRESS=DEFLATE",'-q', interim_path,out_path])
+	subprocess.call(["gdal_translate","-co", "TILED=YES",'-co',"COPY_SRC_OVERVIEWS=YES",'-co', f"COMPRESS={compression}",'-q', interim_path,out_path])
 
 	# delete interim_path
 	os.remove(interim_path)
@@ -291,7 +303,7 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 	return out_path
 
 
-def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True) -> str:
+def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True,qa=False) -> str:
 	"""
 	This function takes the name of an imagery product, observation date,
 	and a vegetation index, and creates a global mosaic of the given
@@ -317,6 +329,8 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 	cmg_snow_mask:bool
 		Implemented only for CMG-scale imagery. If set to True, masks out snow- and 
 		ice-flagged pixels.
+	qa:bool
+		Whether to include a Quality Assurance layer as a second band
 	"""
 
 	startTime = datetime.now()
@@ -329,6 +343,15 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 
 	if os.path.exists(out_path) and overwrite == False:
 		raise FileExistsError(f"{out_path} already exists. To overwrite file, set 'overwrite=True'.")
+
+	qa_dataset = None
+	qa_path = None
+	if qa:
+		out_ext = os.path.splitext(out_path)[1]
+		qa_path = out_path.replace(out_ext,f".QA{out_ext}")
+		qa_dataset = QA_DICT[product]
+		if qa_dataset is None:
+			raise octvi.exceptions.UnsupportedError(f"No qa dataset recognized for product '{product}'.")
 
 	working_directory = os.path.dirname(out_path)
 
@@ -344,28 +367,42 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 		tiles = octvi.url.getUrls(product,date)
 		log.info(f"Building {vi} tiles")
 		ndvi_files = []
+		qa_files = []
 		try:
 			for tile in tiles:
-				#if tile[1][-2:] in ["00","01","16","17"]:
-					#log.info(f"skipping {tile[1]}")
-					#continue
 				log.debug(tile[1])
+				tileSize = tile[2]
 				url = tile[0]
+				diskSize = 0
 				try:
-					hdf_file = octvi.url.pull(url,working_directory,retries=8)
+					for i in range(5):
+						if diskSize ==0:
+							log.debug(f"Attempting to pull {url}")
+							hdf_file = octvi.url.pull(url,working_directory,retries=8)
+							diskSize = os.path.getsize(hdf_file)
+					if diskSize==0: # all recourse on LADS has failed
+						raise octvi.exceptions.UnavailableError("File sizes do not match after 5 attempts to pull from LADS")
 				except octvi.exceptions.UnavailableError:
 					log.error("Unavailable from LADS DAAC; trying from LP DAAC")
-					url = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0][0]
+					url, tileName,tileSize = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0]
 					hdf_file = octvi.url.pull(url,working_directory)
 				ext = os.path.splitext(hdf_file)[1]
 				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
+				if qa:
+					octvi.extract.datasetToRaster(hdf_file,qa_dataset,hdf_file.replace(ext,".qa.tif"))
+					qa_files.append(hdf_file.replace(ext,".qa.tif"))
 				os.remove(hdf_file)
-			log.info("Creating mosaic")
+			log.info("Creating VI mosaic")
 			mosaic(ndvi_files,out_path)
+			if qa:
+				log.info("Creating Quality Assurance mosaic")
+				mosaic(qa_files,qa_path)
 
 		## remove indiviual HDFs
 		finally:
 			for f in ndvi_files:
+				os.remove(f)
+			for f in qa_files:
 				os.remove(f)
 
 	endTime = datetime.now()

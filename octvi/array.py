@@ -115,7 +115,7 @@ def mask(in_array, source_stack) -> "numpy array":
 			qa_arr = octvi.extract.datasetToArray(source_stack, "250m 8 days VI Quality")
 	
 
-		in_array[(pr_arr != 0) & (pr_arr != 1)] = -3000
+		#in_array[(pr_arr != 0) & (pr_arr != 1)] = -3000
 
 		# mask clouds
 		in_array[(qa_arr & 0b11) > 1] = -3000 # bits 0-1 > 01 = Cloudy
@@ -293,7 +293,7 @@ def mask(in_array, source_stack) -> "numpy array":
 
 		## mask aerosols
 		in_array[(state_arr & 0b11000000) == 0] = -3000 # climatology
-		in_array[(state_arr & 0b11000000) == 192] = -3000 # high
+		# in_array[(state_arr & 0b11000000) == 192] = -3000 # high; known to be an unreliable flag in MODIS collection 6
 
 		## mask snow/ice
 		in_array[(state_arr & 0b1000000000000) != 0] = -3000
@@ -308,7 +308,7 @@ def mask(in_array, source_stack) -> "numpy array":
 	## return output
 	return in_array
 
-def toRaster(in_array,out_path,model_file,dtype = None) -> None:
+def toRaster(in_array,out_path,model_file,dtype = None,*args,**kwargs) -> None:
 	"""
 	This function saves a numpy array into a raster file, with
 	the same project and extents as the provided model file.
@@ -327,8 +327,16 @@ def toRaster(in_array,out_path,model_file,dtype = None) -> None:
 		Full path to raster file where the output will be written
 	model_file: str
 		Existing raster file with matching spatial reference and geotransform
-
+	qa_array (optional): numpy.array
+		If this parameter is used, the output raster will have two bands. Band
+		1 stores in_array, band 2 stores qa_array
 	"""
+
+	# determine number of output bands
+	if kwargs.get("qa_array") is not None:
+		nbands = 2
+	else:
+		nbands = 1
 
 	## extract extent, geotransform, and projection
 	refDs = gdal.Open(model_file,0)
@@ -367,12 +375,17 @@ def toRaster(in_array,out_path,model_file,dtype = None) -> None:
 	## parse datatype
 	typeTable = {"Byte":gdal.GDT_Byte,"Int16":gdal.GDT_Int16,"Int32":gdal.GDT_Int32,"Float32":gdal.GDT_Float32,"Float64":gdal.GDT_Float64}
 	outType = typeTable.get(dtype,gdal.GDT_Int16)
+	if( kwargs.get("qa_array") is not None) and (outType not in [gdal.GDT_Int16,gdal.GDT_Int32]):
+		log.warning("When qa_array is set in octvi.array.toRaster, dtype must be one of 'Int16' or 'Int32. Results will be coerced to Int16.")
+		outType = gdal.GDT_Int16
 
 	## write to disk
 	driver = gdal.GetDriverByName('GTiff')
-	dataset = driver.Create(out_path,rasterXSize,rasterYSize,1,outType,['COMPRESS=DEFLATE'])
+	dataset = driver.Create(out_path,rasterXSize,rasterYSize,nbands,outType,['COMPRESS=DEFLATE'])
 	dataset.GetRasterBand(1).WriteArray(in_array)
 	dataset.GetRasterBand(1).SetNoDataValue(-3000)
+	if kwargs.get("qa_array") is not None:
+		dataset.GetRasterBand(2).WriteArray(kwargs.get("qa_array"))
 	dataset.SetGeoTransform(geoTransform)
 	dataset.FlushCache() # Write to disk
 	del dataset
@@ -388,3 +401,5 @@ def toRaster(in_array,out_path,model_file,dtype = None) -> None:
 		log.error("--could not open with GDAL")
 
 	return None
+
+
