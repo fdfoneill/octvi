@@ -289,11 +289,11 @@ def mask(in_array, source_stack) -> "numpy array":
 		in_array[(state_arr & 0b100) != 0] = -3000
 
 		## mask cloud adjacent pixels
-		#in_array[(state_arr & 0b10000000000000) != 0] = -3000
+		in_array[(state_arr & 0b10000000000000) != 0] = -3000
 
 		## mask aerosols
 		in_array[(state_arr & 0b11000000) == 0] = -3000 # climatology
-		# in_array[(state_arr & 0b11000000) == 192] = -3000 # high; known to be an unreliable flag in MODIS collection 6
+		in_array[(state_arr & 0b11000000) == 192] = -3000 # high; known to be an unreliable flag in MODIS collection 6
 
 		## mask snow/ice
 		in_array[(state_arr & 0b1000000000000) != 0] = -3000
