@@ -125,14 +125,17 @@ def mask(in_array, source_stack) -> "numpy array":
 		in_array[(qa_arr & 0b11000000) == 192] = -3000 # high
 
 		# mask water
-		in_array[((qa_arr & 0b11100000000000) != 8) & ((qa_arr & 0b11100000000000) != 16) & ((qa_arr & 0b11100000000000) != 32)] = -3000
-		# 8 = land, 16 = coastline, 32 = ephemeral water
+		in_array[((qa_arr & 0b11100000000000) != 2048) & ((qa_arr & 0b11100000000000) != 4096) & ((qa_arr & 0b11100000000000) != 8192)] = -3000
+		# 001 = land, 010 = coastline, 100 = ephemeral water
 
 		# mask snow/ice
 		in_array[(qa_arr & 0b100000000000000) != 0] = -3000 # bit 14
 
 		# mask cloud shadow
 		in_array[(qa_arr & 0b1000000000000000) != 0] = -3000 # bit 15
+
+		# mask cloud adjacent pixels
+		in_array[(qa_arr & 0b100000000) != 0] = -3000 # bit 8
 
 	# MODIS and VIIRS surface reflectance masking
 	# CMG
