@@ -1,4 +1,4 @@
-import argparse, configparser, sys
+import argparse, configparser, os, sys
 from octvi import configFile
 
 def getYesNo(message:str) -> bool:
@@ -20,8 +20,8 @@ def main():
 		help="List current credentials instead of prompting for new")
 	args = parser.parse_args()
 	config = configparser.ConfigParser()
-	if not os.path.exists(os.path.dirname(config)):
-		os.mkdir(os.path.dirname(config))
+	if not os.path.exists(os.path.dirname(configFile)):
+		os.mkdir(os.path.dirname(configFile))
 	try:
 		config.read(configFile)
 		## if asked to list existing credentials, print them nicely

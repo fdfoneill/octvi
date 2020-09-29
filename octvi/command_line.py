@@ -31,6 +31,12 @@ def main():
 		"--overwrite",
 		action='store_true',
 		help="Whether to overwrite an existing file at the output location. Default False.")
+	parser.add_argument("-d",
+		"--daac",
+		action='store',
+		default="LADS",
+		choices=["LADS","LP"],
+		help="Which Distributed Archive (DAAC) to pull imagery from. Default LADS.")
 
 	args = parser.parse_args()
 

@@ -303,7 +303,7 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 	return out_path
 
 
-def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True,qa=False) -> str:
+def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=True,qa=False,daac="LADS") -> str:
 	"""
 	This function takes the name of an imagery product, observation date,
 	and a vegetation index, and creates a global mosaic of the given
@@ -364,7 +364,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 		raise octvi.exceptions.UnsupportedError("Only CMG-scale imagery is supported for GCVI generation")
 	else:
 		log.info("Fetching urls")
-		tiles = octvi.url.getUrls(product,date)
+		tiles = octvi.url.getUrls(product,date,lads_or_lp=daac)
 		log.info(f"Building {vi} tiles")
 		ndvi_files = []
 		qa_files = []
@@ -381,10 +381,14 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 							hdf_file = octvi.url.pull(url,working_directory,retries=8)
 							diskSize = os.path.getsize(hdf_file)
 					if diskSize==0: # all recourse on LADS has failed
-						raise octvi.exceptions.UnavailableError("File sizes do not match after 5 attempts to pull from LADS")
+						raise octvi.exceptions.UnavailableError(f"File sizes do not match after 5 attempts to pull from {daac}")
 				except octvi.exceptions.UnavailableError:
-					log.error("Unavailable from LADS DAAC; trying from LP DAAC")
-					url, tileName,tileSize = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp="LP")[0]
+					if daac=="LADS":
+						new_daac="LP"
+					elif daac == "LP":
+						new_daac="LADS"
+					log.error(f"Unavailable from {daac} DAAC; trying from {new_daac} DAAC")
+					url, tileName,tileSize = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp=new_daac)[0]
 					hdf_file = octvi.url.pull(url,working_directory)
 				ext = os.path.splitext(hdf_file)[1]
 				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
