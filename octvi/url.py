@@ -163,7 +163,7 @@ def getUrls(product:str,date:str,tiles=None,lads_or_lp="LADS") -> list:
 		nrt = True
 	else:
 		nrt = False
-	
+
 	## assign correct collection number
 	if prefix == "VNP":
 		collection = "5000"
@@ -196,6 +196,8 @@ def getUrls(product:str,date:str,tiles=None,lads_or_lp="LADS") -> list:
 	## append matching files / all files
 	for f in dirFiles:
 		if nrt:
+			if f['kind'] != "FILE": # skip non-file entries, such as directories
+				continue
 			fPath = f['downloadsLink']
 			fTile = fPath.split("/")[-1].split(".")[2]
 			if fPath.split(".")[-1] == "met": # skip metadata files for NRT
@@ -292,7 +294,7 @@ def getDates(product:str,date:str) -> list:
 	else:
 		nrt = False
 		dirUrl = "https://ladsweb.modaps.eosdis.nasa.gov/archive/allData/"
-	
+
 	## assign correct collection number
 	if prefix == "VNP":
 		collection = "5000"
