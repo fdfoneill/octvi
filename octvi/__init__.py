@@ -1,17 +1,17 @@
 # MIT License
-# 
+#
 # Copyright (c) [year] [fullname]
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -39,6 +39,7 @@ log = logging.getLogger(__name__)
 import octvi.exceptions, octvi.array, octvi.extract, octvi.url
 from octvi.url import supported_products
 from octvi.array import supported_indices
+from octvi.config import configFile
 import configparser, gdal, shutil, subprocess
 from datetime import datetime, timedelta
 from urllib.request import HTTPError
@@ -63,7 +64,6 @@ QA_DICT = {
 	"VNP09CMG":None
 	}
 
-configFile = os.path.join(os.path.dirname(os.path.dirname(__file__)),"etc/config.ini")
 try:
 	config = configparser.ConfigParser()
 	config.read(configFile)
@@ -79,7 +79,7 @@ def mosaic(in_files:list,out_path:str,compression="DEFLATE") -> str:
 	as a single raster file.
 
 	Note that global 250/500-m scale mosaics are large files, and
-	a single image may be more than 2 GB in size. Make sure that 
+	a single image may be more than 2 GB in size. Make sure that
 	there is sufficient disk space before calling this function.
 
 	Return value is the string passed to 'out_path'
@@ -157,7 +157,7 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) -> str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (MOD09CMG), beginning on the provided date
-	
+
 	***
 
 	Parameters
@@ -205,7 +205,7 @@ def modCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) -> str:
 				log.error("HTTPError from LADS DAAC; retrying from LP DAAC")
 				url = octvi.url.getUrls("MOD09CMG",d,lads_or_lp="LP")[0][0]
 				hdfs.append(octvi.url.pull(url,working_directory))
-		
+
 		## create ideal ndvi array
 		log.info("Creating composite")
 		ndviArray = octvi.extract.cmgBestViPixels(hdfs,snow_mask=snow_mask)
@@ -233,7 +233,7 @@ def vnpCmgVi(date,out_path:str,overwrite=False,vi="NDVI",snow_mask=True) ->str:
 	"""
 	This function produces an 8-day composite VI image
 	at cmg scale (VNP09CMG), beginning on the provided date
-	
+
 	***
 
 	Parameters
@@ -327,7 +327,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 	vi: str
 		Default "NDVI", valid ["NDVI", "GCVI"]
 	cmg_snow_mask:bool
-		Implemented only for CMG-scale imagery. If set to True, masks out snow- and 
+		Implemented only for CMG-scale imagery. If set to True, masks out snow- and
 		ice-flagged pixels.
 	qa:bool
 		Whether to include a Quality Assurance layer as a second band
@@ -418,7 +418,7 @@ def cmgNdvi(date,out_path:str,overwrite=False,snow_mask=False) -> str:
 	"""
 	This function produces an 8-day composite NDVI image
 	at cmg scale (MOD09CMG), beginning on the provided date
-	
+
 	***
 
 	Parameters

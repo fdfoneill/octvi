@@ -1,5 +1,5 @@
 import argparse, configparser, os, sys
-from octvi import configFile
+configFile = os.path.join(os.path.dirname(os.path.dirname(__file__)),"etc/config.ini")
 
 def getYesNo(message:str) -> bool:
 	cont = input(message+"[Y/N]\n")
