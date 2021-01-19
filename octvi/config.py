@@ -45,7 +45,7 @@ def main():
 		config['NASA'] = {}
 	if args.list:
 		sys.exit()
-	config['NASA']['app_key'] = input('App Key: ')
+	config['NASA']['app_key'] = input('Token: ')
 	if getYesNo('Save new app key?'):
 		with open(configFile,'w') as wf:
 			config.write(wf)
