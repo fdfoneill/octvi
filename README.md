@@ -13,7 +13,7 @@ The default masking criteria for MxD09Q1, MxD13Q1, and MxD13Q4N imagery have bee
 
 ## New in Version 2.0.0
 
-Downloading from the NASA distributed archives (DAACs) requires a personal app key. This key was previously provided as part of the `octvi` distribution, but this is no longer the case as of Version 2.0.0. Instead, users must configure the module using a new console script, `octviconfig`. After installation, run `octviconfig` to prompt the input of your personal app key. Information on obtaining app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#appkeys.
+Downloading from the NASA distributed archives (DAACs) requires a personal app key. This key was previously provided as part of the `octvi` distribution, but this is no longer the case as of Version 2.0.0. Instead, users must configure the module using a new console script, `octviconfig`. After installation, run `octviconfig` to prompt the input of your personal app key. Information on obtaining app keys can be found at https://ladsweb.modaps.eosdis.nasa.gov/tools-and-services/data-download-scripts/#tokens.
 
 # Motivation
 I work on development of the Global Agriculture Monitoring (GLAM) system. A core feature of the system is the ability to display large amounts of Vegetation Index (VI) imagery, pulled from sources like the MODIS and VIIRS satellite sensors. Obviously, displaying that imagery through our system requires the ability to download it from its source. This is harder than it sounds, especially when we also want to extract specific subdatasets, convert to a different file format, and mosaic dozens of individual "tiles" into a single global image.
@@ -42,13 +42,13 @@ The primary functionality of the `octvi` module is the creation of global mosaic
 import octvi # import module
 
 # create a list of all days in January 2019 for which there exists valid VNP09H1 imagery
-viirsJanuaryDates = octvi.url.getDates("VNP09H1","2019-01") 
+viirsJanuaryDates = octvi.url.getDates("VNP09H1","2019-01")
 
 # generate global NDVI mosaic of MOD09Q1 data for an 8-day period starting on January 1st, 2019
-octvi.globalVi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif") 
+octvi.globalVi("MOD09Q1","2019-01-01","C:/temp/example_standard.tif")
 
 # generate custome composite of CMG-scale GCVI for an 8-day period starting on January 1st, 2019
-octvi.globalVi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif",vi="GCVI") 
+octvi.globalVi("MOD09CMG","2019-01-01","C:/temp/example_cmg.tif",vi="GCVI")
 ```
 
 # How to Use
