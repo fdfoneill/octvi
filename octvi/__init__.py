@@ -61,7 +61,8 @@ QA_DICT = {
 	"MOD09Q1N":"sur_refl_state_250m",
 	"MOD13Q4N":"250m 8 days VI Quality",
 	"MOD09CMG":None,
-	"VNP09CMG":None
+	"VNP09CMG":None,
+	"MOD09A1":"sur_refl_state_500m"
 	}
 
 try:
@@ -325,7 +326,7 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 	overwrite: bool
 		Default False, whether to overwrite existing file at out_path
 	vi: str
-		Default "NDVI", valid ["NDVI", "GCVI"]
+		Default "NDVI", valid ["NDVI", "GCVI", "NDWI"]
 	cmg_snow_mask:bool
 		Implemented only for CMG-scale imagery. If set to True, masks out snow- and
 		ice-flagged pixels.
@@ -360,8 +361,6 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 			modCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
 		elif product[0] == "V":
 			vnpCmgVi(date,out_path,overwrite=overwrite,vi=vi,snow_mask=cmg_snow_mask)
-	elif vi == "GCVI":
-		raise octvi.exceptions.UnsupportedError("Only CMG-scale imagery is supported for GCVI generation")
 	else:
 		log.info("Fetching urls")
 		tiles = octvi.url.getUrls(product,date,lads_or_lp=daac)
@@ -391,7 +390,15 @@ def globalVi(product,date,out_path:str,overwrite=False,vi="NDVI",cmg_snow_mask=T
 					url, tileName,tileSize = octvi.url.getUrls(product,date,tiles=tile[1],lads_or_lp=new_daac)[0]
 					hdf_file = octvi.url.pull(url,working_directory)
 				ext = os.path.splitext(hdf_file)[1]
-				ndvi_files.append(octvi.extract.ndviToRaster(hdf_file,hdf_file.replace(ext,".ndvi.tif")))
+				vi_functions = {
+					"NDVI":octvi.extract.ndviToRaster,
+					"GCVI":octvi.extract.gcviToRaster,
+					"NDWI":octvi.extract.ndwiToRaster
+				}
+				try:
+					ndvi_files.append(vi_functions[vi](hdf_file,hdf_file.replace(ext,f".{vi}.tif")))
+				except octvi.UnsupportedError:
+					raise octvi.exceptions.UnsupportedError(f"Vegetation index '{vi}' not supported for product '{product}'")
 				if qa:
 					octvi.extract.datasetToRaster(hdf_file,qa_dataset,hdf_file.replace(ext,".qa.tif"))
 					qa_files.append(hdf_file.replace(ext,".qa.tif"))

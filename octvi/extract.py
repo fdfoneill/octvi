@@ -12,7 +12,7 @@ import numpy as np
 def getDatasetNames(stack_path:str) -> list:
 	"""
 	Returns list of all subdataset names, in format
-	suitable for passing to other functions' 
+	suitable for passing to other functions'
 	'dataset_name' argument
 	"""
 
@@ -202,10 +202,48 @@ def gcviToArray(in_stack:str) -> "numpy array":
 		## perform calculation
 		arr_gcvi = octvi.array.calcGcvi(arr_green,arr_nir)
 
+	elif suffix == "09A1":
+		sdName_green = "sur_refl_b04"
+		sdName_nir = "sur_refl_b02"
+		arr_green = datasetToArray(in_stack,sdName_green)
+		arr_nir = datasetToArray(in_stack,sdName_nir)
+		arr_gcvi = octvi.array.calcGcvi(arr_green,arr_nir)
+
 	else:
-		raise octvi.exceptions.UnsupportedError("Only CMG-scale imagery is supported for GCVI generation")
+		raise octvi.exceptions.UnsupportedError("Only MOD09CMG and MOD09A1 imagery is supported for GCVI generation")
 
 	return arr_gcvi
+
+def ndwiToArray(in_stack:str) -> "numpy array":
+	"""
+	This function finds the correct SWIR and NIR bands
+	from a hierarchical file, calculates a NDWI array,
+	and returns the outpus in numpy array format.
+
+	Valid input format is HDF.
+
+	...
+
+	Parameters
+	----------
+
+	in_stack: str
+		Full path to input hierarchical file
+
+	"""
+
+	suffix = os.path.basename(in_stack).split(".")[0][3:7]
+
+	if suffix == "09A1":
+		sdName_nir = "sur_refl_b02"
+		sdName_swir = "sur_refl_b05"
+		arr_nir = datasetToArray(in_stack, sdName_nir)
+		arr_swir = datasetToArray(in_stack,sdName_swir)
+		arr_ndwi = octvi.array.calcNdwi(arr_nir,arr_swir)
+	else:
+		raise octvi.exceptions.UnsupportedError("Only MOD09A1 imagery is supported for GCVI generation")
+
+	return arr_ndwi
 
 def ndviToRaster(in_stack,out_path,qa_name=None) -> str:
 	"""
@@ -280,10 +318,30 @@ def gcviToRaster(in_stack:str,out_path:str) -> str:
 
 	return out_path
 
+def ndwiToRaster(in_stack:str, out_path:str) -> str:
+	"""
+	This function directly converts a hierarchical data
+	file into an NDWI raster.
+
+	Returns the string path to the output file
+	"""
+
+	# create gcvi array
+	ndwiArray = ndwiToArray(in_stack)
+
+	# apply cloud, shadow, and water masks
+	ndwiArray = octvi.array.mask(ndwiArray, in_stack)
+
+	sample_sd = getDatasetNames(in_stack)[0]
+
+	octvi.array.toRaster(ndwiArray,out_path,datasetToPath(in_stack,sample_sd))
+
+	return out_path
+
 def cmgToViewAngArray(source_stack,product="MOD09CMG") -> "numpy array":
 	"""
 	This function takes the path to a M*D CMG file, and returns
-	the view angle of each pixel. Ephemeral water pixels are 
+	the view angle of each pixel. Ephemeral water pixels are
 	set to 999, to be used as a last resort in compositing.
 
 	Returns a numpy array of the same dimensions as the input raster.
@@ -318,7 +376,7 @@ def cmgListToWaterArray(stacks:list,product="MOD09CMG") -> "numpy array":
 	Parameters
 	----------
 	stacks:list
-		List of hdf filepaths (M*D**CMG) 
+		List of hdf filepaths (M*D**CMG)
 	"""
 	water_list = []
 	for source_stack in stacks:
@@ -345,7 +403,7 @@ def cmgListToWaterArray(stacks:list,product="MOD09CMG") -> "numpy array":
 
 def cmgToRankArray(source_stack,product="MOD09CMG") -> "numpy array":
 	"""
-	This function takes the path to a MOD**CMG file, and returns 
+	This function takes the path to a MOD**CMG file, and returns
 	the rank of each pixel, as defined on page 7 of the MOD09 user
 	guide (http://modis-sr.ltdri.org/guide/MOD09_UserGuide_v1.4.pdf)
 
@@ -496,7 +554,7 @@ def cmgBestViPixels(input_stacks:list,vi="NDVI",product = "MOD09CMG",snow_mask=F
 	This function takes a list of hdf stack paths, and
 	returns the 'best' VI value for each pixel location,
 	determined through the ranking method (see
-	cmgToRankArray() for details). 
+	cmgToRankArray() for details).
 
 	***
 
@@ -567,7 +625,7 @@ def qaTo8BitArray(stack_path) -> "numpy array":
 	example, non-land pixels are masked by default, so the land/
 	water flag is unused.
 
-	This function pares down the 16-bit mask into an 8-bit 
+	This function pares down the 16-bit mask into an 8-bit
 	version that retains all necessary functionality.
 
 	***

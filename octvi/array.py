@@ -7,7 +7,7 @@ import gdal, h5py, octvi.extract
 import numpy as np
 from gdalnumeric import *
 
-supported_indices = ["NDVI","GCVI"]
+supported_indices = ["NDVI","GCVI","NDWI"]
 
 def calcNdvi(red_array,nir_array) -> "numpy array":
 	"""
@@ -73,6 +73,38 @@ def calcGcvi(green_array,nir_array) -> "numpy array":
 	## return array
 	return gcvi
 
+def calcNdwi(nir_array, swir_array) -> "numpy array":
+	"""
+	A function to robustly build an NDWI array from two
+	arrays (SWIR and NIR) of the same shape.
+
+	Resulting array is scaled by 10000, with values stored
+	as integers. Nodata value is -3000.
+
+	...
+
+	Parameters
+	----------
+
+	nir_array: numpy.array
+		Array of near-infrared reflectances
+	swir_array: numpy.array
+		Array of shortwave infrared reflectances
+
+	"""
+
+	## perform NDVI generation
+	ndwi = np.divide((nir_array - swir_array),(nir_array + swir_array))
+
+	## rescale and replace infinities
+	ndwi = ndwi * 10000
+	ndwi[ndwi == np.inf] = -3000
+	ndwi[ndwi == -np.inf] = -3000
+	ndwi = ndwi.astype(int)
+
+	## return array
+	return ndwi
+
 def mask(in_array, source_stack) -> "numpy array":
 	"""
 	This function removes non-clear pixels from an input array,
@@ -113,7 +145,7 @@ def mask(in_array, source_stack) -> "numpy array":
 		else:
 			pr_arr = octvi.extract.datasetToArray(source_stack, "250m 8 days pixel reliability")
 			qa_arr = octvi.extract.datasetToArray(source_stack, "250m 8 days VI Quality")
-	
+
 
 		#in_array[(pr_arr != 0) & (pr_arr != 1)] = -3000
 
@@ -272,7 +304,12 @@ def mask(in_array, source_stack) -> "numpy array":
 	# standard
 	else:
 		# modis
-		if ext == ".hdf": 
+		## MOD09A1
+		if suffix == "09A1":
+			qa_arr = octvi.extract.datasetToArray(source_stack, "sur_refl_qc_500m")
+			state_arr = octvi.extract.datasetToArray(source_stack,"sur_refl_state_500m")
+		## all other MODIS products
+		elif ext == ".hdf":
 			qa_arr = octvi.extract.datasetToArray(source_stack, "sur_refl_qc_250m")
 			state_arr = octvi.extract.datasetToArray(source_stack,"sur_refl_state_250m")
 
@@ -351,7 +388,7 @@ def toRaster(in_array,out_path,model_file,dtype = None,*args,**kwargs) -> None:
 	# viirs won't tell you its geotransform
 	if geoTransform[1] == 1.0:
 		if os.path.splitext(model_file)[1] == ".h5":
-			pixelSize = 463.3127165		
+			pixelSize = 463.3127165
 			# use h5py
 			try:
 				refDs = h5py.File(model_file.split("\"")[1],mode='r') # open file in read-only mode
@@ -404,5 +441,3 @@ def toRaster(in_array,out_path,model_file,dtype = None,*args,**kwargs) -> None:
 		log.error("--could not open with GDAL")
 
 	return None
-
-
